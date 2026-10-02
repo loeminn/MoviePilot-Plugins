@@ -1,3 +1,8 @@
+from .dependency_compat import ensure_concurrenttools_compat
+
+# 在宿主及第三方模块间接导入 p115client 前补齐兼容接口
+ensure_concurrenttools_compat()
+
 from time import sleep
 from copy import deepcopy
 from dataclasses import asdict
