@@ -12,17 +12,17 @@
 - 改用 V3 SDK、消息类型、宿主数据库操作接口和统一媒体标识；一次性任务及周期服务重建使用公开调度接口。
 - 302 算法、URL 构造、缓存和网盘请求逻辑保持上游实现，仅迁移依赖的宿主导入路径。
 - Rust 扩展不可用时，目录树和分享扫描使用 Python 后端，全量同步使用上游 Python 分支；可能比 Rust 后端慢。随源码保留的 wheel 均来自原版，未重新编译或引入其他分支二进制。
-- 新增 V3 目录；V2 后端源码不变。共享前端通过 `MP_PLUGIN_V3=1` 或 `PLUGIN_DIR=plugins.v3/p115strmhelper` 选择 V3 构建。
+- 本仓库仅保留 V3 实现。前端通过 `MP_PLUGIN_V3=1` 或 `PLUGIN_DIR=plugins.v3/p115strmhelper` 选择 V3 构建。
 
 ## 集成
 
-源码覆盖包保留仓库相对路径，在上述上游提交的副本中解压即可得到本次变更；不是完整仓库。`plugins.v3/p115strmhelper/dist/assets` 已含 V3 前端产物。
+当前仓库仅包含本插件；直接克隆仓库即可获取完整源码。此前交付的源码覆盖包仍对应精简前的上游副本。`plugins.v3/p115strmhelper/dist/assets` 已含 V3 前端产物。
 
 依赖由 `pyproject.toml` 声明；运行宿主应使用 MP V3 支持的 Python 3.14 环境。开发机的 Python 3.12 测试结果不能替代实际宿主加载验证。
 
 建议先在独立 MP V3 实例安装并验证：插件加载和保存配置、网盘原生整理后 STRM 路径及播放、全量/增量同步、302 实际播放、备份任务与重启恢复。当前没有连接用户的 MP 服务、115 账号或媒体服务器，未完成这些端到端验证。
 
-发布前应完成上述验证，再将 `package.v3.json` 的 `release` 改为 true，并使用仓库原有发布流程。当前没有推送 GitHub 或创建发行版。
+发布前应完成上述验证，再将 `package.v3.json` 的 `release` 改为 true，并使用仓库原有发布流程。源码已推送至 loeminn/MoviePilot-Plugins，尚未创建发行版。
 
 ## 本地验证
 

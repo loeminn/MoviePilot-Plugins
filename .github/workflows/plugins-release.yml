@@ -13,13 +13,12 @@ on:
         required: true
         type: choice
         options:
-          - plugins
-          - plugins.v2
           - plugins.v3
-        default: 'plugins.v2'
+        default: 'plugins.v3'
       # 手动输入要打包的插件ID
       plugin_id:
-        description: '请输入 package.json 中的插件 ID (例如: AutoSignIn)'
+        description: '插件 ID'
+        default: 'P115StrmHelper'
         required: true
         type: string
       # 是否为预发布版本
@@ -34,7 +33,7 @@ on:
     branches:
       - main
     paths:
-      - 'package*.json'
+      - 'package.v3.json'
 
 jobs:
   # 检测需要发布的插件

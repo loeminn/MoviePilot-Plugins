@@ -144,7 +144,7 @@ def handle_push() -> List[Dict]:
 
     try:
         result = subprocess.run(
-            ["git", "diff", "--name-only", before_sha, after_sha],
+            ["git", "diff", "--name-only", "--diff-filter=AM", before_sha, after_sha],
             capture_output=True, text=True, check=True
         )
         changed_files = result.stdout.strip().split('\n')
