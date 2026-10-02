@@ -1,6 +1,6 @@
 # 115 网盘 STRM 助手：MoviePilot V3 适配版
 
-版本：3.0.3；目标宿主：MoviePilot >=3.1.0。发行包见本仓库 Releases；尚未完成真实 MP/115 账号端到端联调。
+版本：3.0.4；目标宿主：MoviePilot >=3.1.0。发行包见本仓库 Releases；尚未完成真实 MP/115 账号端到端联调。
 
 基于 DDSRem-Dev/MoviePilot-Plugins 的 `2d6f93a5a80930e4d8001452439b81039cf2c50b` 原版 V2 实现移植，未合入 zkmydgth 分支。宿主源码核对版本为 `2e24c4063ff11eacd1f431708d906600d634046d`，并核对 v3.1.0 的公开调度入口。
 
@@ -16,6 +16,12 @@
 - 302 算法、URL 构造、缓存和网盘请求逻辑保持上游实现，仅迁移依赖的宿主导入路径。
 - Rust 扩展不可用时，目录树和分享扫描使用 Python 后端，全量同步使用上游 Python 分支；可能比 Rust 后端慢。随源码保留的 wheel 均来自原版，未重新编译或引入其他分支二进制。
 - 本仓库仅保留 V3 实现。前端通过 `MP_PLUGIN_V3=1` 或 `PLUGIN_DIR=plugins.v3/p115strmhelper` 选择 V3 构建。
+
+## 3.0.4 配置保存生命周期修复
+
+详情页的自定义 `save_config` 接口在工作线程中校验并保存配置，通过 SDK `PluginManager.init_plugin` 更新宿主实例及事件状态，再调用已核对的 `app.application.plugin.management.refresh_plugin_registrations` 刷新定时任务、命令和 API 路由。后者目前没有 SDK 导出，已核对 MP 3.1.0 适配基线的实现。普通配置页仍使用宿主标准保存入口。
+
+新增 5 项配置生命周期测试，使用插件实际初始化/保存方法、服务声明和宿主 FastAPI 动态路由注册器，验证客户端更新、cron 变更、定时任务开关、禁用、输入校验、持久化失败以及工作线程执行；宿主存储、管理器和调度注册边界使用替身。尚未进行真实 MP/115 账号联调。
 
 ## 3.0.3 本地目录选择修复
 
@@ -39,7 +45,7 @@
 
 ## 本地验证
 
-- 设置 `MOVIEPILOT_SOURCE` 指向已核对的 MP 源码后，`python -m pytest tests/p115strmhelper_v3 -q`：28 项通过，覆盖配置保存后重新初始化、公开 Oper 模糊查询、分身拒绝、默认值、接管配置禁用、Python 后端、原生整理事件到文件写入，以及调度回调的主插件实例归属、同实例服务重建保留与旧实例任务清理；不设置该变量时两项宿主方法测试会跳过
+- 设置 `MOVIEPILOT_SOURCE` 指向已核对的 MP 源码后，`python -m pytest tests/p115strmhelper_v3 -q`：33 项通过，覆盖配置保存后重新初始化、公开 Oper 模糊查询、分身拒绝、默认值、接管配置禁用、Python 后端、原生整理事件到文件写入，以及调度回调的主插件实例归属、同实例服务重建保留与旧实例任务清理；不设置该变量时三项宿主合同测试会跳过
 - `python -m unittest discover -s plugins.v3/p115strmhelper/tests -p test_r302_concurrency.py -q`：6 项上游 302 并发测试通过
 - Python 源码编译检查及 V3 前端生产构建通过
 - 60 个宿主导入符号在目标源码中找到；这是静态核对，不能证明全部运行时调用兼容
