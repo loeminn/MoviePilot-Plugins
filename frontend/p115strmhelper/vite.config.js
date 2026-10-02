@@ -2,7 +2,10 @@ import { defineConfig } from 'vite'
 import vue from '@vitejs/plugin-vue'
 import federation from '@originjs/vite-plugin-federation'
 
+const isV3 = process.env.MP_PLUGIN_V3 === "1" || (process.env.PLUGIN_DIR || "").startsWith("plugins.v3/")
+
 export default defineConfig({
+  define: { __MP_PLUGIN_V3__: JSON.stringify(isV3) },
   plugins: [
     vue(),
     federation({
@@ -44,6 +47,7 @@ export default defineConfig({
         manualChunks: (id) => {
           // 将 node_modules 中的大型依赖分离
           if (id.includes('node_modules')) {
+            if (isV3 && /[\\/]node_modules[\\/](?:vuetify|vue|@vue|@mdi)[\\/]/.test(id)) return undefined;
             // ECharts 单独打包（通常很大）
             if (id.includes('echarts') || id.includes('vue-echarts')) {
               return 'echarts';

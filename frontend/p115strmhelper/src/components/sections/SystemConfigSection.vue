@@ -101,7 +101,7 @@
           </v-row>
           <v-row>
             <v-col cols="12" md="6">
-              <v-switch v-model="config.pan_transfer_takeover" label="接管网盘整理" color="info" density="compact"
+              <v-switch v-model="config.pan_transfer_takeover" :disabled="isV3" label="接管网盘整理" color="info" density="compact"
                 hint="接管 115 → 115 整理任务进行批量处理，需要存储模块为 115网盘Plus" persistent-hint></v-switch>
             </v-col>
             <v-col cols="12" md="6" v-if="config.pan_transfer_takeover">
@@ -138,7 +138,8 @@
                 persistent-hint></v-select>
             </v-col>
           </v-row>
-          <v-row v-if="config.pan_transfer_takeover">
+          <v-row v-if="isV3"><v-col cols="12"><v-alert type="info" variant="tonal">V3 使用 MoviePilot 原生整理，不支持批量接管；可在 STRM 生成中开启“监控MP整理”。</v-alert></v-col></v-row>
+          <v-row v-if="!isV3 && config.pan_transfer_takeover">
             <v-col cols="12">
               <v-alert type="warning" variant="tonal" density="compact" icon="mdi-alert"
                 v-if="config.storage_module !== '115网盘Plus'">
@@ -630,6 +631,7 @@
 </template>
 
 <script setup>
+const isV3 = __MP_PLUGIN_V3__;
 import { ref, inject } from 'vue';
 
 const systemSubTab = ref('tab-cache-config');
