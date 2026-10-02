@@ -1,11 +1,14 @@
 """通过 V3 宿主保存配置并刷新插件运行态注册"""
 
+from threading import Lock
 from typing import Any, Dict
 
 from app.application.plugin.management import refresh_plugin_registrations
 from app.sdk.plugin import PluginManager
 
 from .config import configer
+
+_config_update_lock = Lock()
 
 
 def save_plugin_config(updates: Dict[str, Any]) -> None:
@@ -14,7 +17,7 @@ def save_plugin_config(updates: Dict[str, Any]) -> None:
         raise ValueError("配置必须是 JSON 对象")
     plugin_id = "P115StrmHelper"
     manager = PluginManager()
-    with manager.mutation(f"更新插件 {plugin_id} 配置"):
+    with manager.mutation(f"更新插件 {plugin_id} 配置"), _config_update_lock:
         config = configer.model_dump(mode="json")
         config.update(updates)
         config = configer.model_validate(config).model_dump(mode="json")

@@ -4,9 +4,10 @@ import ast
 import asyncio
 import os
 from contextlib import contextmanager
+from concurrent.futures import ThreadPoolExecutor
 from pathlib import Path
 import runpy
-from threading import get_ident
+from threading import Event, Lock, get_ident
 from types import SimpleNamespace
 from typing import Any, Dict
 from unittest.mock import Mock
@@ -72,6 +73,7 @@ def runtime():
     manager.mutation.side_effect = mutation
     manager.save_plugin_config.side_effect = persist
     helper = dict(Any=Any, Dict=Dict, configer=config, PluginManager=lambda: manager,
+                  _config_update_lock=Lock(),
                   refresh_plugin_registrations=Mock())
     load_functions(PLUGIN / "core/config_update.py", {"save_plugin_config"}, helper)
     return SimpleNamespace(config=config, manager=manager, helper=helper, calls=calls, storage=storage)
@@ -176,3 +178,55 @@ def test_api_moves_blocking_save_off_event_loop_and_reports_refresh_failure():
     result = asyncio.run(namespace["_save_config_api"](None, SimpleNamespace(json=payload)))
     assert result["code"] == 1
     assert "路由刷新失败" in result["msg"]
+
+
+def test_concurrent_partial_saves_preserve_both_changes(runtime):
+    first_refresh = Event()
+    second_waiting = Event()
+    release_first = Event()
+    lock = runtime.helper["_config_update_lock"]
+
+    class ObservedLock:
+        def __enter__(self):
+            if lock.locked():
+                second_waiting.set()
+            lock.acquire()
+
+        def __exit__(self, *args):
+            lock.release()
+
+    runtime.helper["_config_update_lock"] = ObservedLock()
+    runtime.manager.init_plugin.side_effect = lambda plugin_id, conf: runtime.config.update_config(conf)
+    refreshed = []
+
+    def refresh(plugin_id):
+        refreshed.append(runtime.config.model_dump())
+        if len(refreshed) == 1:
+            first_refresh.set()
+            assert release_first.wait(5)
+
+    runtime.helper["refresh_plugin_registrations"] = refresh
+    save = runtime.helper["save_plugin_config"]
+    with ThreadPoolExecutor(max_workers=2) as pool:
+        first = pool.submit(save, {"cookies": "account-B"})
+        try:
+            assert first_refresh.wait(5)
+            second = pool.submit(save, {"cron_full_sync_strm": "0 3 * * *"})
+            assert second_waiting.wait(5)
+            assert runtime.manager.save_plugin_config.call_count == 1
+        finally:
+            release_first.set()
+        first.result(timeout=5)
+        second.result(timeout=5)
+    assert runtime.storage == runtime.config.model_dump()
+    assert runtime.storage["cookies"] == "account-B"
+    assert runtime.storage["cron_full_sync_strm"] == "0 3 * * *"
+    assert refreshed[-1] == runtime.storage
+
+
+def test_refresh_failure_releases_save_lock(runtime):
+    runtime.helper["refresh_plugin_registrations"].side_effect = RuntimeError("刷新失败")
+    with pytest.raises(RuntimeError, match="刷新失败"):
+        runtime.helper["save_plugin_config"]({"cookies": "account-B"})
+    assert runtime.helper["_config_update_lock"].acquire(blocking=False)
+    runtime.helper["_config_update_lock"].release()

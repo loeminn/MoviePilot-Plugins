@@ -2546,7 +2546,10 @@ const executeShareSync = async () => {
       flushShareInteractiveGenStrmToInitialConfig();
       flushShareStrmCleanupToInitialConfig();
 
-      await props.api.post(`plugin/${pluginId}/save_config`, props.initialConfig);
+      const saveResult = await props.api.post(`plugin/${pluginId}/save_config`, props.initialConfig);
+      if (!saveResult || saveResult.code !== 0) {
+        throw new Error(saveResult?.msg || '保存配置失败');
+      }
     }
 
     const result = await props.api.post(`plugin/${pluginId}/share_sync`);
