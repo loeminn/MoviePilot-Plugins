@@ -1,6 +1,6 @@
-# 115 网盘 STRM 助手：MoviePilot V3 适配候选版
+# 115 网盘 STRM 助手：MoviePilot V3 适配版
 
-版本：3.0.0；目标宿主：MoviePilot >=3.1.0。当前 `release: false`，未发布到插件市场。
+版本：3.0.1；目标宿主：MoviePilot >=3.1.0。发行包见本仓库 Releases；尚未完成真实 MP/115 账号端到端联调。
 
 基于 DDSRem-Dev/MoviePilot-Plugins 的 `2d6f93a5a80930e4d8001452439b81039cf2c50b` 原版 V2 实现移植，未合入 zkmydgth 分支。宿主源码核对版本为 `2e24c4063ff11eacd1f431708d906600d634046d`，并核对 v3.1.0 的公开调度入口。
 
@@ -25,7 +25,7 @@
 
 建议先在独立 MP V3 实例安装并验证：插件加载和保存配置、网盘原生整理后 STRM 路径及播放、全量/增量同步、302 实际播放、备份任务与重启恢复。当前没有连接用户的 MP 服务、115 账号或媒体服务器，未完成这些端到端验证。
 
-发布前应完成上述验证，再将 `package.v3.json` 的 `release` 改为 true，并使用仓库原有发布流程。源码已推送至 loeminn/MoviePilot-Plugins，尚未创建发行版。
+通过仓库 GitHub Actions 发布，发行包包含 V3 前端产物及 SHA256 校验文件。发布不代表上述真实账号联调已经完成。
 
 ## 本地验证
 

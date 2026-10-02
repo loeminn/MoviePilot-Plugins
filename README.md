@@ -2,7 +2,7 @@
 
 本仓库仅维护 **115 网盘 STRM 助手的 MoviePilot V3 适配版**，基于 [DDSRem-Dev/MoviePilot-Plugins](https://github.com/DDSRem-Dev/MoviePilot-Plugins) 原版开发，保留原作者署名及许可证。
 
-当前版本 **3.0.0 候选版**，目标宿主 **MoviePilot >=3.1.0**。尚未完成真实 MP V3 / 115 账号联调，`release: false`，未发布正式发行版。
+当前版本 **3.0.1**，目标宿主 **MoviePilot >=3.1.0**。[下载发行版](https://github.com/loeminn/MoviePilot-Plugins/releases/tag/P115StrmHelper_v3.0.1)。尚未完成真实 MP V3 / 115 账号端到端联调。
 
 - 使用 MP 原生整理，禁用旧版批量整理接管；保留“监控 MP 整理生成 STRM”
 - 保留 302、全量/增量同步、分享等原有功能；302 核心逻辑保持原版
@@ -25,7 +25,7 @@
 ## 验证与构建
 
 ```sh
-python -m pip install pytest 'pydantic>=2,<3'
+python -m pip install pytest 'pydantic>=2,<3' 'httpx[http2]~=0.28.1' orjson
 python -m pytest tests/p115strmhelper_v3 -q
 python -m unittest discover -s plugins.v3/p115strmhelper/tests -p test_r302_concurrency.py -q
 ```
@@ -36,6 +36,6 @@ python -m unittest discover -s plugins.v3/p115strmhelper/tests -p test_r302_conc
 
 配置持久化使用插件基类接口，历史查询使用公开 Oper；保存后重新初始化、模糊匹配及分身拒绝行为已有回归测试。
 
-CSS 检查器来自 [官方仓库](https://github.com/jxxghp/MoviePilot-Plugins/blob/main/.github/scripts/check_federation_css.py)，保留原始检查规则。候选版 CI 运行 `check_candidate_css.py`，仅豁免 `release=false`；正式发布运行完整 `check_federation_css.py`。本次已移除 Vuetify 全局基础样式产物。
+CSS 检查器来自 [官方仓库](https://github.com/jxxghp/MoviePilot-Plugins/blob/main/.github/scripts/check_federation_css.py)，保留原始检查规则。发布版本 CI 和发布工作流均运行完整 `check_federation_css.py`；`check_candidate_css.py` 仅供未来未发布候选版本使用。本次已移除 Vuetify 全局基础样式产物。
 
 仓库精简通过普通提交完成，上游历史保留，方便溯源和后续同步。

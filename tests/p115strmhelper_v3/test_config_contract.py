@@ -53,9 +53,9 @@ def test_manifest_and_source_version_match():
     entry = json.loads((ROOT / "package.v3.json").read_text("utf8"))["P115StrmHelper"]
     namespace = {}
     exec((PLUGIN / "version.py").read_text("utf8"), namespace)
-    assert entry["version"] == namespace["VERSION"] == "3.0.0"
+    assert entry["version"] == namespace["VERSION"] == "3.0.1"
     assert entry["system_version"] == ">=3.1.0"
-    assert entry["release"] is False
+    assert entry["release"] is True
 
 
 def test_assignment_cannot_reenable_legacy_takeover():
