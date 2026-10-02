@@ -58,6 +58,7 @@ jobs:
           MP_PLUGIN_V3: '1'
         run: |
           npm ci --ignore-scripts
+          node --test tests/*.test.js
           npm run build
       - name: Validate newly built federation CSS
         run: |

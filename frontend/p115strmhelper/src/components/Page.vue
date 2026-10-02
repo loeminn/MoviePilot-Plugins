@@ -1561,6 +1561,7 @@
 </template>
 
 <script setup>
+import { browseLocalDirectory } from '../utils/localDirectory.js';
 import { ref, reactive, computed, onMounted, onBeforeUnmount, watch } from 'vue';
 import { P115_STRM_HELPER_PLUGIN_ID } from '../utils/pluginId.js';
 import FullSyncConfirmDialog from './dialogs/FullSyncConfirmDialog.vue';
@@ -2412,15 +2413,7 @@ const loadDirContent = async () => {
   try {
     if (dirDialog.isLocal) {
       try {
-        const response = await props.api.post('storage/list', { path: dirDialog.currentPath || '/', type: 'share', flag: 'ROOT' });
-        if (response && Array.isArray(response)) {
-          dirDialog.items = response
-            .filter(item => item.type === 'dir')
-            .map(item => ({ name: item.name, path: item.path, is_dir: true }))
-            .sort((a, b) => a.name.localeCompare(b.name, undefined, { numeric: true, sensitivity: 'base' }));
-        } else {
-          throw new Error('浏览目录失败：无效响应');
-        }
+        dirDialog.items = await browseLocalDirectory(props.api, dirDialog.currentPath);
       } catch (error) {
         console.error('浏览本地目录失败:', error);
         dirDialog.error = `浏览本地目录失败: ${error.message || '未知错误'}`;

@@ -2,7 +2,7 @@
 
 本仓库仅维护 **115 网盘 STRM 助手的 MoviePilot V3 适配版**，基于 [DDSRem-Dev/MoviePilot-Plugins](https://github.com/DDSRem-Dev/MoviePilot-Plugins) 原版开发，保留原作者署名及许可证。
 
-当前版本 **3.0.2**，目标宿主 **MoviePilot >=3.1.0**。[下载发行版](https://github.com/loeminn/MoviePilot-Plugins/releases/tag/P115StrmHelper_v3.0.2)。尚未完成真实 MP V3 / 115 账号端到端联调。
+当前版本 **3.0.3**，目标宿主 **MoviePilot >=3.1.0**。[下载发行版](https://github.com/loeminn/MoviePilot-Plugins/releases/tag/P115StrmHelper_v3.0.3)。尚未完成真实 MP V3 / 115 账号端到端联调。
 
 - 使用 MP 原生整理，禁用旧版批量整理接管；保留“监控 MP 整理生成 STRM”
 - 保留 302、全量/增量同步、分享等原有功能；302 核心逻辑保持原版
@@ -21,6 +21,8 @@
 | `package.v3.json` | 仅包含 P115StrmHelper 的插件清单 |
 
 [V3 适配说明](plugins.v3/p115strmhelper/README.md) · [上游使用文档](docs/p115strmhelper/README.md)
+
+3.0.3 修复配置页与分享配置页选择本地目录时的“无效响应”错误。更新后刷新浏览器页面。
 
 3.0.2 修复 `concurrenttools 0.1.9` 导致的 `threadpool_map` 导入失败；更新后请重启 MoviePilot。兼容层和验证范围见 [V3 适配说明](plugins.v3/p115strmhelper/README.md)。
 
