@@ -1,6 +1,6 @@
 # 115 网盘 STRM 助手：MoviePilot V3 适配版
 
-版本：3.0.1；目标宿主：MoviePilot >=3.1.0。发行包见本仓库 Releases；尚未完成真实 MP/115 账号端到端联调。
+版本：3.0.2；目标宿主：MoviePilot >=3.1.0。发行包见本仓库 Releases；尚未完成真实 MP/115 账号端到端联调。
 
 基于 DDSRem-Dev/MoviePilot-Plugins 的 `2d6f93a5a80930e4d8001452439b81039cf2c50b` 原版 V2 实现移植，未合入 zkmydgth 分支。宿主源码核对版本为 `2e24c4063ff11eacd1f431708d906600d634046d`，并核对 v3.1.0 的公开调度入口。
 
@@ -16,6 +16,12 @@
 - 302 算法、URL 构造、缓存和网盘请求逻辑保持上游实现，仅迁移依赖的宿主导入路径。
 - Rust 扩展不可用时，目录树和分享扫描使用 Python 后端，全量同步使用上游 Python 分支；可能比 Rust 后端慢。随源码保留的 wheel 均来自原版，未重新编译或引入其他分支二进制。
 - 本仓库仅保留 V3 实现。前端通过 `MP_PLUGIN_V3=1` 或 `PLUGIN_DIR=plugins.v3/p115strmhelper` 选择 V3 构建。
+
+## 3.0.2 依赖兼容修复
+
+`p115client==0.0.9.6.5.1` 导入时使用 `threadpool_map` / `taskgroup_map`，而 `python-concurrenttools==0.1.9` 将其改为 `thread_conmap` / `async_conmap`。插件在其他导入之前执行兼容初始化，仅为 0.1.9 在共享 `concurrenttools` 模块中添加缺失的旧名称，不覆盖已有函数。0.1.8 沿用原有接口；版本约束上限为 `<0.1.10`，未来版本需重新验证。
+
+更新后请重启 MoviePilot，使进程重新加载插件和依赖。CI 在 Python 3.14 下分别安装两种真实依赖组合，解析插件源码中的全部 p115client 导入符号，并验证同步/异步映射及错误传播；这些测试无需 115 账号。两版异步接口的异常包装不同，测试同时覆盖普通异常和 ExceptionGroup。
 
 ## 集成
 

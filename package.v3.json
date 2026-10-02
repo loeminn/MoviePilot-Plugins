@@ -3,13 +3,14 @@
         "name": "115网盘STRM助手",
         "description": "115网盘STRM生成一条龙服务",
         "labels": "云盘",
-        "version": "3.0.1",
+        "version": "3.0.2",
         "icon": "https://raw.githubusercontent.com/jxxghp/MoviePilot-Frontend/refs/heads/v2/src/assets/images/misc/u115.png",
         "author": "DDSRem",
         "release": true,
         "system_version": ">=3.1.0",
         "level": 1,
         "history": {
+            "v3.0.2": "修复 concurrenttools 0.1.9 移除旧并发接口名导致 p115client 导入失败、插件无法加载的问题；兼容 0.1.8/0.1.9，新增 Python 3.14 真实依赖导入及并发接口测试。仍使用 MP 原生整理，三项上报默认关闭；尚未完成真实 MP/115 账号端到端联调。",
             "v3.0.1": "适配 MoviePilot >=3.1.0；修复 V3 配置持久化、一次性任务实例归属及历史查询；移除 Vuetify 全局样式。使用 MP 原生整理，保留整理后生成 STRM、302 和同步；三项上报默认关闭。当前仅支持单实例，不支持虚拟分身。已通过自动化测试，尚未进行真实 MP/115 账号端到端联调。",
             "v3.0.0": "适配 MoviePilot V3；错误、分享链接和离线链接上报默认关闭"
         },

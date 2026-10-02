@@ -2,7 +2,7 @@
 
 本仓库仅维护 **115 网盘 STRM 助手的 MoviePilot V3 适配版**，基于 [DDSRem-Dev/MoviePilot-Plugins](https://github.com/DDSRem-Dev/MoviePilot-Plugins) 原版开发，保留原作者署名及许可证。
 
-当前版本 **3.0.1**，目标宿主 **MoviePilot >=3.1.0**。[下载发行版](https://github.com/loeminn/MoviePilot-Plugins/releases/tag/P115StrmHelper_v3.0.1)。尚未完成真实 MP V3 / 115 账号端到端联调。
+当前版本 **3.0.2**，目标宿主 **MoviePilot >=3.1.0**。[下载发行版](https://github.com/loeminn/MoviePilot-Plugins/releases/tag/P115StrmHelper_v3.0.2)。尚未完成真实 MP V3 / 115 账号端到端联调。
 
 - 使用 MP 原生整理，禁用旧版批量整理接管；保留“监控 MP 整理生成 STRM”
 - 保留 302、全量/增量同步、分享等原有功能；302 核心逻辑保持原版
@@ -22,6 +22,8 @@
 
 [V3 适配说明](plugins.v3/p115strmhelper/README.md) · [上游使用文档](docs/p115strmhelper/README.md)
 
+3.0.2 修复 `concurrenttools 0.1.9` 导致的 `threadpool_map` 导入失败；更新后请重启 MoviePilot。兼容层和验证范围见 [V3 适配说明](plugins.v3/p115strmhelper/README.md)。
+
 ## 验证与构建
 
 ```sh
@@ -29,6 +31,8 @@ python -m pip install pytest 'pydantic>=2,<3' 'httpx[http2]~=0.28.1' orjson
 python -m pytest tests/p115strmhelper_v3 -q
 python -m unittest discover -s plugins.v3/p115strmhelper/tests -p test_r302_concurrency.py -q
 ```
+
+真实依赖测试另运行 `python -m pytest tests/dependencies -q`；先安装 `p115client==0.0.9.6.5.1`，并分别使用 `python-concurrenttools==0.1.8` 和 `==0.1.9`。CI 在 Python 3.14 上执行两组测试，每组 5 项，不使用 p115client 替身。
 
 前端在 `frontend/p115strmhelper` 中运行 `npm ci`，设置 `MP_PLUGIN_V3=1` 后运行 `npm run build`。发布工作流会自动构建前端并打包。
 
