@@ -42,6 +42,7 @@ from .sidebar_nav import build_sidebar_nav
 from .version import VERSION
 from .api import Api
 from .service import servicer
+from .service.one_shot import bind_plugin_instance, unbind_plugin_instance
 from .service.hdhive_checkin.job import run_hdhive_checkin_once
 from .service.p115_checkin.job import run_p115_checkin_once
 from .core.cache import (
@@ -200,6 +201,7 @@ class P115StrmHelper(_PluginBase):
         self.stop_service()
 
         if configer.enabled:
+            bind_plugin_instance(self)
             self.init_database()
 
             if servicer.init_service():
@@ -2212,6 +2214,7 @@ class P115StrmHelper(_PluginBase):
         """
         退出插件
         """
+        unbind_plugin_instance(self)
         type(self)._rename_media_fields_cache.clear()
         servicer.stop()
         ct_db_manager.close_database()

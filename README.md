@@ -31,6 +31,6 @@ python -m unittest discover -s plugins.v3/p115strmhelper/tests -p test_r302_conc
 
 前端在 `frontend/p115strmhelper` 中运行 `npm ci`，设置 `MP_PLUGIN_V3=1` 后运行 `npm run build`。发布工作流会自动构建前端并打包。
 
-本地已有 19 项适配测试和 6 项 302 并发测试通过。它们使用宿主、数据库和网络边界替身，不等于真实宿主端到端验证。
+本地已有 24 项适配测试和 6 项 302 并发测试通过。运行适配测试前，将 `MOVIEPILOT_SOURCE` 环境变量设为 MoviePilot 源码目录，可执行其中两项真实宿主调度方法测试；未设置时这两项会跳过。CI 固定检出已核对的宿主提交并执行全部测试。测试使用数据库和网络边界替身，不等于真实宿主端到端验证。
 
 仓库精简通过普通提交完成，上游历史保留，方便溯源和后续同步。

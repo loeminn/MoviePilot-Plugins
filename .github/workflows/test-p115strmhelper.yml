@@ -14,12 +14,20 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v7
+      - name: Checkout verified MoviePilot host contract
+        uses: actions/checkout@v7
+        with:
+          repository: jxxghp/MoviePilot
+          ref: 2e24c4063ff11eacd1f431708d906600d634046d
+          path: .host-contract
       - uses: actions/setup-python@v6
         with:
           python-version: '3.14'
       - name: Install test dependencies
         run: python -m pip install pytest 'pydantic>=2,<3'
       - name: Test V3 compatibility boundaries
+        env:
+          MOVIEPILOT_SOURCE: ${{ github.workspace }}/.host-contract
         run: python -m pytest tests/p115strmhelper_v3 -q
       - name: Test 302 concurrency
         run: python -m unittest discover -s plugins.v3/p115strmhelper/tests -p test_r302_concurrency.py -q

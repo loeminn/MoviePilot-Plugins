@@ -26,7 +26,7 @@
 
 ## 本地验证
 
-- `python -m pytest tests/p115strmhelper_v3 -q`：19 项通过，覆盖默认值、接管配置禁用、Python 后端、原生整理事件到文件写入及公开调度注册
+- 设置 `MOVIEPILOT_SOURCE` 指向已核对的 MP 源码后，`python -m pytest tests/p115strmhelper_v3 -q`：24 项通过，覆盖默认值、接管配置禁用、Python 后端、原生整理事件到文件写入，以及调度回调的主插件实例归属、同实例服务重建保留与旧实例任务清理；不设置该变量时两项宿主方法测试会跳过
 - `python -m unittest discover -s plugins.v3/p115strmhelper/tests -p test_r302_concurrency.py -q`：6 项上游 302 并发测试通过
 - Python 源码编译检查及 V3 前端生产构建通过
 - 60 个宿主导入符号在目标源码中找到；这是静态核对，不能证明全部运行时调用兼容
