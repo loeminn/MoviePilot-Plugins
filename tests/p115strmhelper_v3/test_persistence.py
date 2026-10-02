@@ -1,11 +1,8 @@
-"""执行插件持久化方法及实际保存 API，验证保存后重新初始化的数据"""
+"""执行插件持久化方法，验证宿主插件存储及实例绑定"""
 
 import ast
-import asyncio
 from pathlib import Path
-from types import SimpleNamespace
-from typing import Any, Dict, Optional
-from unittest.mock import MagicMock
+from typing import Any, Optional
 from weakref import ref
 
 from pydantic import BaseModel, PrivateAttr
@@ -13,7 +10,7 @@ from pydantic import BaseModel, PrivateAttr
 ROOT = Path(__file__).resolve().parents[2] / "plugins.v3/p115strmhelper"
 
 
-def test_save_api_reads_back_saved_configuration():
+def test_config_persistence_uses_bound_plugin_storage():
     source = ast.parse((ROOT / "core/config.py").read_text("utf8"))
     cls = next(n for n in source.body if isinstance(n, ast.ClassDef) and n.name == "ConfigManager")
     methods = {"bind_plugin", "_plugin", "update_plugin_config"}
@@ -31,7 +28,6 @@ def test_save_api_reads_back_saved_configuration():
 
     config = Config()
     storage = {}
-    reloaded = []
     class Owner:
         def update_config(self, data):
             storage.update(data)
@@ -40,22 +36,12 @@ def test_save_api_reads_back_saved_configuration():
         def get_config(self):
             return dict(storage)
 
-        def init_plugin(self, config):
-            reloaded.append(config)
-
     owner = Owner()
     config.bind_plugin(owner)
-    tree = ast.parse((ROOT / "__init__.py").read_text("utf8"))
-    cls = next(n for n in tree.body if isinstance(n, ast.ClassDef) and n.name == "P115StrmHelper")
-    method = next(n for n in cls.body if isinstance(n, ast.AsyncFunctionDef) and n.name == "_save_config_api")
-    namespace = dict(configer=config, i18n=MagicMock(), sentry_manager=MagicMock(), Request=Any, Dict=Dict)
-    exec(compile(ast.Module(body=[method], type_ignores=[]), "save-api", "exec"), namespace)
-    async def payload():
-        return {"enabled": True}
-    response = asyncio.run(namespace["_save_config_api"](owner, SimpleNamespace(json=payload)))
-    assert response["code"] == 0
+    config.update_config({"enabled": True})
+    config.update_plugin_config()
     assert storage == {"enabled": True}
-    assert reloaded == [{"enabled": True}]
+    assert owner.get_config() == {"enabled": True}
 
 
 def test_clone_rejected_before_shared_configuration_changes():

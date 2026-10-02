@@ -3,6 +3,7 @@ from .dependency_compat import ensure_concurrenttools_compat
 # 在宿主及第三方模块间接导入 p115client 前补齐兼容接口
 ensure_concurrenttools_compat()
 
+from asyncio import to_thread
 from time import sleep
 from copy import deepcopy
 from dataclasses import asdict
@@ -56,6 +57,7 @@ from .core.cache import (
     sharestrmcacher,
 )
 from .core.config import configer
+from .core.config_update import save_plugin_config
 from .core.i18n import i18n
 from .core.message import post_message
 from .db_manager import ct_db_manager, init_database as ensure_database
@@ -2238,19 +2240,7 @@ class P115StrmHelper(_PluginBase):
         """
         try:
             data = await request.json()
-            if not configer.update_config(data):
-                return {"code": 1, "msg": "保存失败，请查看详细日志"}
-
-            # 持久化存储配置
-            configer.update_plugin_config()
-
-            i18n.load_translations()
-
-            sentry_manager.reload_config()
-
-            # 重新初始化插件
-            self.init_plugin(config=self.get_config())
-
+            await to_thread(save_plugin_config, data)
             return {"code": 0, "msg": "保存成功"}
         except Exception as e:
             return {"code": 1, "msg": f"保存失败: {str(e)}"}

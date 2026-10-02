@@ -38,7 +38,7 @@ jobs:
         with:
           python-version: '3.14'
       - name: Install test dependencies
-        run: python -m pip install pytest 'pydantic>=2,<3' 'httpx[http2]~=0.28.1' orjson
+        run: python -m pip install pytest 'pydantic>=2,<3' 'httpx[http2]~=0.28.1' orjson 'fastapi~=0.141.1'
       - name: Test V3 compatibility boundaries
         env:
           MOVIEPILOT_SOURCE: ${{ github.workspace }}/.host-contract
