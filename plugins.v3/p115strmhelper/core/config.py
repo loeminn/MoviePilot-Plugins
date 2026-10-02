@@ -1,4 +1,5 @@
 from pathlib import Path
+from weakref import ref
 from platform import system, release
 from re import fullmatch as re_fullmatch
 from typing import Any, Dict, List, Literal, Optional, Union
@@ -6,6 +7,7 @@ from typing import Any, Dict, List, Literal, Optional, Union
 from orjson import loads, JSONDecodeError
 from pydantic import (
     BaseModel,
+    PrivateAttr,
     ValidationError,
     ConfigDict,
     Field,
@@ -17,8 +19,6 @@ from pydantic import (
 from app.sdk.logging import logger
 from app.sdk.config import settings
 from app.sdk.utilities import SystemUtils
-from app.db.oper.systemconfig import SystemConfigOper
-from app.db.oper.plugindata import PluginDataOper
 
 from ..sidebar_nav import sidebar_nav_keys_known
 from ..version import VERSION
@@ -58,6 +58,18 @@ class ConfigManager(BaseModel):
     """
     插件配置管理器
     """
+
+    _plugin_ref: Any = PrivateAttr(default=None)
+
+    def bind_plugin(self, plugin: Any) -> None:
+        """绑定当前主插件，通过基类接口持久化配置及结构化数据"""
+        self._plugin_ref = ref(plugin)
+
+    def _plugin(self) -> Any:
+        plugin = self._plugin_ref() if self._plugin_ref is not None else None
+        if plugin is None:
+            raise RuntimeError("插件实例尚未绑定，无法访问持久化配置")
+        return plugin
 
     @staticmethod
     def _get_default_plugin_config_path() -> Path:
@@ -1018,9 +1030,7 @@ class ConfigManager(BaseModel):
         """
         将当前配置状态保存到数据库
         """
-        systemconfig = SystemConfigOper()
-        plugin_id = self.PLUSIN_NAME
-        return systemconfig.set(f"plugin.{plugin_id}", self.model_dump(mode="json"))
+        return self._plugin().update_config(self.model_dump(mode="json"))
 
     def get_user_agent(self, utype: int = -1) -> str:
         """
@@ -1119,10 +1129,7 @@ class ConfigManager(BaseModel):
         :param value: 数据值
         :param plugin_id: plugin_id
         """
-        if not plugin_id:
-            plugin_id = self.PLUSIN_NAME
-        plugindata = PluginDataOper()
-        plugindata.save(plugin_id, key, value)
+        self._plugin().save_data(key, value, plugin_id=plugin_id)
 
     def get_plugin_data(
         self, key: Optional[str] = None, plugin_id: Optional[str] = None
@@ -1132,10 +1139,7 @@ class ConfigManager(BaseModel):
         :param key: 数据key
         :param plugin_id: plugin_id
         """
-        if not plugin_id:
-            plugin_id = self.PLUSIN_NAME
-        plugindata = PluginDataOper()
-        return plugindata.get_data(plugin_id, key)
+        return self._plugin().get_data(key, plugin_id=plugin_id)
 
     def del_plugin_data(self, key: str, plugin_id: Optional[str] = None) -> Any:
         """
@@ -1143,10 +1147,7 @@ class ConfigManager(BaseModel):
         :param key: 数据key
         :param plugin_id: plugin_id
         """
-        if not plugin_id:
-            plugin_id = self.PLUSIN_NAME
-        plugindata = PluginDataOper()
-        return plugindata.del_data(plugin_id, key)
+        return self._plugin().del_data(key, plugin_id=plugin_id)
 
 
 configer = ConfigManager()

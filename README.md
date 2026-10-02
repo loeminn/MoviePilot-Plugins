@@ -8,6 +8,7 @@
 - 保留 302、全量/增量同步、分享等原有功能；302 核心逻辑保持原版
 - 错误、分享链接、离线链接三项上报默认关闭，已有明确配置保留
 - 不包含 V2 插件和其他插件
+- 当前仅支持单实例，创建虚拟分身时会拒绝初始化，避免共享配置、缓存和端口
 
 ## 目录
 
@@ -31,6 +32,10 @@ python -m unittest discover -s plugins.v3/p115strmhelper/tests -p test_r302_conc
 
 前端在 `frontend/p115strmhelper` 中运行 `npm ci`，设置 `MP_PLUGIN_V3=1` 后运行 `npm run build`。发布工作流会自动构建前端并打包。
 
-本地已有 24 项适配测试和 6 项 302 并发测试通过。运行适配测试前，将 `MOVIEPILOT_SOURCE` 环境变量设为 MoviePilot 源码目录，可执行其中两项真实宿主调度方法测试；未设置时这两项会跳过。CI 固定检出已核对的宿主提交并执行全部测试。测试使用数据库和网络边界替身，不等于真实宿主端到端验证。
+本地已有 28 项适配测试和 6 项 302 并发测试通过。运行适配测试前，将 `MOVIEPILOT_SOURCE` 环境变量设为 MoviePilot 源码目录，可执行其中两项真实宿主调度方法测试；未设置时这两项会跳过。CI 固定检出已核对的宿主提交并执行全部测试。测试使用数据库和网络边界替身，不等于真实宿主端到端验证。
+
+配置持久化使用插件基类接口，历史查询使用公开 Oper；保存后重新初始化、模糊匹配及分身拒绝行为已有回归测试。
+
+CSS 检查器来自 [官方仓库](https://github.com/jxxghp/MoviePilot-Plugins/blob/main/.github/scripts/check_federation_css.py)，保留原始检查规则。候选版 CI 运行 `check_candidate_css.py`，仅豁免 `release=false`；正式发布运行完整 `check_federation_css.py`。本次已移除 Vuetify 全局基础样式产物。
 
 仓库精简通过普通提交完成，上游历史保留，方便溯源和后续同步。

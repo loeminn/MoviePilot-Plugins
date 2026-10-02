@@ -93,6 +93,12 @@ export default defineConfig({
         ...(process.env.NODE_ENV !== 'development' ? [{
           postcssPlugin: 'vuetify-filter',
           Root(root) {
+            const sourcePath = root.source?.input?.file?.replaceAll('\\', '/') || '';
+            if (sourcePath.includes('/node_modules/vuetify/') ||
+                sourcePath.includes('/node_modules/@mdi/')) {
+              if (root.nodes.length) root.removeAll();
+              return;
+            }
             // 过滤掉所有vuetify相关的CSS
             root.walkRules(rule => {
               if (rule.selector && (
@@ -111,4 +117,4 @@ export default defineConfig({
     cors: true,   // 启用CORS
     origin: 'http://localhost:5001'
   },
-}) 
+})

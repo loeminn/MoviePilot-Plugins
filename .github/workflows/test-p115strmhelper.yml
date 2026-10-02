@@ -45,3 +45,7 @@ jobs:
         run: |
           npm ci --ignore-scripts
           npm run build
+      - name: Validate newly built federation CSS
+        run: |
+          python -c "from pathlib import Path; import shutil; p=Path('plugins.v3/p115strmhelper/dist'); shutil.rmtree(p); shutil.copytree('frontend/p115strmhelper/dist', p)"
+          python .github/scripts/check_candidate_css.py

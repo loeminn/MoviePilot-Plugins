@@ -128,6 +128,9 @@ jobs:
           cp -r "${FRONTEND_DIR}/dist" "${PLUGIN_DIR}/"
           echo "Frontend dist built and copied successfully"
 
+      - name: Check federation CSS before release
+        run: python .github/scripts/check_federation_css.py
+
       - name: Package plugin source code
         run: |
           # {

@@ -5,10 +5,8 @@ from pathlib import Path
 from app.sdk.events import Event
 from app.sdk.logging import logger
 from app.sdk.config import settings
-from app.db.models.transferhistory import TransferHistory
 from app.db.oper.transferhistory import TransferHistoryOper
 from app.db.oper.downloadhistory import DownloadHistoryOper
-from app.db.oper.plugindata import PluginDataOper
 from app.sdk.services import DownloaderHelper
 from app.chain.storage import StorageChain
 from app.schemas.types import MediaType, MediaImageType, MessageType, MediaSource
@@ -37,12 +35,10 @@ class MediaSyncDelHelper:
     """
 
     def __init__(self):
-        self.plugindata = PluginDataOper()
-        self.downloadhis = DownloadHistoryOper()
-        self.transferhis = TransferHistoryOper()
         self.transferhisb = TransferHBOper()
         self.downloader_helper = DownloaderHelper()
         self.chain = PluginChian()
+
         self.storagechain = StorageChain()
         self.mediaserver_operate = EmbyOperate(func_name="【同步删除】")
 
@@ -50,6 +46,16 @@ class MediaSyncDelHelper:
         for downloader_name, downloader_info in downloader_services.items():
             if downloader_info.config.default:
                 self.default_downloader = downloader_name
+
+    @property
+    def transferhis(self) -> TransferHistoryOper:
+        """为每次宿主历史操作提供独立 Oper"""
+        return TransferHistoryOper()
+
+    @property
+    def downloadhis(self) -> DownloadHistoryOper:
+        """为每次宿主下载记录操作提供独立 Oper"""
+        return DownloadHistoryOper()
 
     def download_file_del_sync(self, event: Event):
         """
@@ -496,7 +502,7 @@ class MediaSyncDelHelper:
         tmdb_id: int,
         season_num: Optional[str],
         episode_num: Optional[str],
-    ) -> Tuple[str, List[TransferHistory]]:
+    ) -> Tuple[str, List[Any]]:
         """
         查询转移记录
 

@@ -169,6 +169,10 @@ class P115StrmHelper(_PluginBase):
         """
         super().__init__()
 
+        if self.__class__.__name__ != "P115StrmHelper":
+            raise RuntimeError("115 STRM V3 当前仅支持单实例，不支持虚拟分身")
+        configer.bind_plugin(self)
+
         # 初始化配置项
         configer.load_from_dict(config or {})
 
