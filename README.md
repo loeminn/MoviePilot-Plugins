@@ -46,6 +46,16 @@ python -m unittest discover -s plugins.v3/p115strmhelper/tests -p test_r302_conc
 
 配置持久化使用插件基类接口，历史查询使用公开 Oper；保存后重新初始化、模糊匹配及分身拒绝行为已有回归测试。
 
+整理分类测试已使用隔离的 V3 SDK 桩，单独运行且不依赖宿主安装：
+
+```sh
+python -m unittest discover -s plugins.v3/p115strmhelper/tests -p test_transfer_classify.py -q
+```
+
+其他原版测试包含需要宿主和完整依赖的模块。运行完整 `plugins.v3/p115strmhelper/tests` 时，应在本仓库根目录启动，将 `PYTHONPATH` 按顺序设为宿主根目录、插件目录，使用 `unittest discover`；不要在插件目录直接启动，以免插件 `version.py` 遮蔽宿主同名模块。分类测试恢复 `sys.modules`，不会将其假宿主模块留给其他用例。本地精简测试环境不代表完整宿主环境，不能据此声称原版全部测试通过。
+
+上报开关默认关闭，升级保留已存储的显式值；实际部署若继承了 `true`，需要在设置中关闭。`python-concurrenttools` 仍只支持 `>=0.1.8,<0.1.10`，不对未验证版本扩大兼容范围。Sentry 2.x 的旧 Hub 接口暂仍可用，后续迁移需验证插件与宿主的上报隔离；`PluginManager` 经 SDK 导出，注册刷新函数仍是已核对的宿主内部接口。
+
 CSS 检查器来自 [官方仓库](https://github.com/jxxghp/MoviePilot-Plugins/blob/main/.github/scripts/check_federation_css.py)，保留原始检查规则。发布版本 CI 和发布工作流均运行完整 `check_federation_css.py`；`check_candidate_css.py` 仅供未来未发布候选版本使用。本次已移除 Vuetify 全局基础样式产物。
 
 仓库精简通过普通提交完成，上游历史保留，方便溯源和后续同步。

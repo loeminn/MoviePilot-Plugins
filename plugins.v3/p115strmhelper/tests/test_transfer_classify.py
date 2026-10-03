@@ -186,6 +186,10 @@ def _setup_mock_env() -> None:
     for pkg in [
         "app",
         "app.core",
+        "app.sdk",
+        "app.application",
+        "app.application.transfer",
+        "app.db.oper",
         "app.chain",
         "app.db",
         "app.helper",
@@ -246,6 +250,14 @@ def _setup_mock_env() -> None:
         ChainEventType=object,
     )
     _make_module("app.utils.string", StringUtils=object)
+    _make_module("app.sdk.config", settings=FakeSettings())
+    _make_module("app.sdk.logging", logger=sys.modules["app.log"].logger)
+    _make_module("app.sdk.events", eventmanager=sys.modules["app.core.event"].eventmanager)
+    _make_module("app.sdk.media", MetaBase=object, MediaInfo=object, MetaInfoPath=FakeMetaInfoPath)
+    _make_module("app.sdk.utilities", StringUtils=object)
+    _make_module("app.db.oper.transferhistory", TransferHistoryOper=object)
+    _make_module("app.application.directory", DirectoryHelper=object)
+    _make_module("app.application.transfer.models", TransferTask=object)
     _make_module("p115client", P115Client=object, check_response=lambda *a, **k: None)
     _make_module("p115client.tool.edit", update_name=object)
     _make_module("p115client.tool.attr", get_attr=object)
@@ -320,6 +332,9 @@ class TestExtNormalization(TestCase):
         """
         加载真实模块（先加载 handler 的依赖子模块）
         """
+        modules_patch = patch.dict(sys.modules)
+        modules_patch.start()
+        cls.addClassCleanup(modules_patch.stop)
         _setup_mock_env()
         cls.cache_updater = _load_module("helper.transfer.cache_updater")
         cls.linked = _load_module("helper.transfer.linked_subtitle_audio")
@@ -365,7 +380,7 @@ class TestExtNormalization(TestCase):
         配置不带点时仍能判定（用户配置 srt,ass）
         """
         is_sub = self.handler.TransferHandler._is_subtitle_file
-        with patch.object(FakeSettings, "RMT_SUBEXT", ["srt", "ass"]):
+        with patch.object(self.handler.settings, "RMT_SUBEXT", ["srt", "ass"]):
             self.assertTrue(is_sub(FakeFileItem(extension="ass")))
             self.assertFalse(is_sub(FakeFileItem(extension="ssa")))
 
@@ -416,6 +431,9 @@ class TestDiscoverRelatedFiles(TestCase):
         """
         加载真实模块
         """
+        modules_patch = patch.dict(sys.modules)
+        modules_patch.start()
+        cls.addClassCleanup(modules_patch.stop)
         _setup_mock_env()
         cls.linked = _load_module("helper.transfer.linked_subtitle_audio")
 
@@ -501,6 +519,9 @@ class TestDoGenerate(TestCase):
         """
         加载真实模块
         """
+        modules_patch = patch.dict(sys.modules)
+        modules_patch.start()
+        cls.addClassCleanup(modules_patch.stop)
         _setup_mock_env()
         cls.transfer_module = _load_module("helper.strm.transfer")
 

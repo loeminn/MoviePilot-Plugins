@@ -45,6 +45,8 @@ jobs:
         run: python -m pytest tests/p115strmhelper_v3 -q
       - name: Test 302 concurrency
         run: python -m unittest discover -s plugins.v3/p115strmhelper/tests -p test_r302_concurrency.py -q
+      - name: Test transfer classification with isolated V3 SDK stubs
+        run: python -m unittest discover -s plugins.v3/p115strmhelper/tests -p test_transfer_classify.py -q
       - name: Compile plugin source
         run: python -m compileall -q plugins.v3/p115strmhelper
       - uses: actions/setup-node@v7

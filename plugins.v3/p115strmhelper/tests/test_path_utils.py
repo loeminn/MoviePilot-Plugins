@@ -4,8 +4,9 @@ PathUtils 测试模块
 包含 sanitize_path_parts 等路径工具方法的单元测试
 
 运行方式:
-    cd plugins.v2/p115strmhelper
-    PYTHONPATH=../../../MoviePilot:.. python -m unittest discover -s tests -v
+    在仓库根目录运行，PYTHONPATH 按顺序包含 MoviePilot 宿主根目录和插件目录
+    不要从插件目录启动，以免插件 version.py 遮蔽宿主同名模块
+    python -m unittest discover -s plugins.v3/p115strmhelper/tests -p test_path_utils.py -v
 """
 
 from pathlib import Path, PurePosixPath
