@@ -286,11 +286,21 @@ def test_actual_models_load_and_owned_sessions_commit_or_rollback(real_models):
         engine.dispose()
 
 
-def test_actual_postgres_models_write_large_ids(real_models, postgres):
+@pytest.mark.parametrize("model_name", ["File", "Folder", "LifeEvent", "OpenFile", "OpenFolder"])
+def test_actual_postgres_models_write_large_ids(real_models, postgres, model_name):
     manager, models = real_models
     from sqlalchemy.orm import sessionmaker
     manager.bind_handle(SimpleNamespace(session=sessionmaker(bind=postgres.engine)))
-    models.File.upsert_batch_by_list(None, [{"id": 9000000000001, "parent_id": 9000000000002, "path": "/large"}])
-    item = models.File.get_by_id(None, 9000000000001)
+    model = getattr(models, model_name)
+    row = {"id": 9000000000001, "parent_id": 9000000000002}
+    if model_name == "LifeEvent":
+        row.update(file_id=9000000000003, type=1, file_category=1, file_type=1)
+    else:
+        row.update(path="/large", name="large")
+    model.upsert_batch_by_list(None, [row])
+    item = model.get(None, 9000000000001)
     assert item.parent_id == 9000000000002
-    assert item.path == "/large"
+    if model_name == "LifeEvent":
+        assert item.file_id == 9000000000003
+    else:
+        assert item.path == "/large"

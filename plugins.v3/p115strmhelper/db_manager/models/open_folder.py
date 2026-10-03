@@ -1,6 +1,6 @@
 from typing import Set, List, Dict
 
-from sqlalchemy import Column, Integer, String, Text, select
+from sqlalchemy import Column, BigInteger, Integer, String, Text, select
 from sqlalchemy.orm import Session
 from ..replace import replace_batch
 
@@ -14,8 +14,8 @@ class OpenFolder(P115StrmHelperBase):
 
     __tablename__ = "open_folders"
 
-    id = Column(Integer, primary_key=True)
-    parent_id = Column(Integer, nullable=False)
+    id = Column(BigInteger().with_variant(Integer(), "sqlite"), primary_key=True)
+    parent_id = Column(BigInteger().with_variant(Integer(), "sqlite"), nullable=False)
     name = Column(String(255), default="")
     path = Column(Text, unique=True)
 

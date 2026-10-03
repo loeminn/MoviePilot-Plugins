@@ -3,6 +3,7 @@ from typing import Dict, List, Set
 from sqlalchemy import (
     Column,
     Integer,
+    BigInteger,
     String,
     Text,
     select,
@@ -25,8 +26,8 @@ class Folder(P115StrmHelperBase):
 
     __tablename__ = "folders"
 
-    id = Column(Integer, primary_key=True)
-    parent_id = Column(Integer, nullable=False)
+    id = Column(BigInteger().with_variant(Integer(), "sqlite"), primary_key=True)
+    parent_id = Column(BigInteger().with_variant(Integer(), "sqlite"), nullable=False)
     name = Column(String(255), nullable=False)
     path = Column(Text, nullable=False, unique=True)
 
