@@ -807,15 +807,17 @@ class P115StrmHelper(_PluginBase):
         """
         注册插件公共服务
         """
-        cron_service = [
-            {
-                "id": "P115StrmHelper_offline_status",
-                "name": "监控115网盘离线下载进度",
-                "trigger": CronTrigger.from_crontab("*/2 * * * *"),
-                "func": servicer.offline_status,
-                "kwargs": {},
-            }
-        ]
+        cron_service = []
+        if configer.offline_status_enabled:
+            cron_service.append(
+                {
+                    "id": "P115StrmHelper_offline_status",
+                    "name": "监控115网盘离线下载进度",
+                    "trigger": CronTrigger.from_crontab("*/2 * * * *"),
+                    "func": servicer.offline_status,
+                    "kwargs": {},
+                }
+            )
         if (
             configer.monitor_life_enabled
             and configer.monitor_life_paths

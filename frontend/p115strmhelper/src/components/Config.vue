@@ -416,6 +416,7 @@ const config = reactive({
   pan_transfer_paths: '',
   pan_transfer_unrecognized_path: '',
   share_recieve_paths: [],
+  offline_status_enabled: true,
   offline_download_paths: [],
   directory_upload_enabled: false,
   directory_upload_mode: 'compatibility',

@@ -14,7 +14,7 @@ PLUGIN = ROOT / "plugins.v3/p115strmhelper"
 def config_model():
     tree = ast.parse((PLUGIN / "core/config.py").read_text("utf8"))
     original = next(node for node in tree.body if isinstance(node, ast.ClassDef) and node.name == "ConfigManager")
-    fields = {"error_info_upload", "upload_share_info", "upload_offline_info", "pan_transfer_takeover", "model_config"}
+    fields = {"error_info_upload", "upload_share_info", "upload_offline_info", "pan_transfer_takeover", "offline_status_enabled", "model_config"}
     selected = [node for node in original.body if
                 (isinstance(node, ast.AnnAssign) and isinstance(node.target, ast.Name) and node.target.id in fields)
                 or (isinstance(node, ast.Assign) and any(isinstance(t, ast.Name) and t.id == "model_config" for t in node.targets))
@@ -62,3 +62,10 @@ def test_assignment_cannot_reenable_legacy_takeover():
     config = config_model()()
     config.pan_transfer_takeover = True
     assert config.pan_transfer_takeover is False
+
+
+def test_offline_status_default_and_explicit_disable_survive_reload():
+    model = config_model()
+    assert model().offline_status_enabled is True
+    disabled = model(offline_status_enabled=False)
+    assert model.model_validate_json(disabled.model_dump_json()).offline_status_enabled is False

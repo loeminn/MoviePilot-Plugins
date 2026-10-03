@@ -663,6 +663,7 @@ class ConfigManager(BaseModel):
     share_recieve_paths: Optional[List] = Field(
         default_factory=list, description="分享转存目录"
     )
+    offline_status_enabled: bool = Field(default=True, description="离线下载进度检查开关")
     offline_download_paths: Optional[List] = Field(
         default_factory=list, description="离线下载目录"
     )

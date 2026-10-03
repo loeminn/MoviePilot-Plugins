@@ -120,9 +120,12 @@
           <v-card variant="outlined" class="mt-4">
             <v-card-title class="text-subtitle-1">
               <v-icon start>mdi-download</v-icon>
-              离线下载目录
+              离线下载
             </v-card-title>
             <v-card-text>
+              <v-switch v-model="config.offline_status_enabled" label="离线下载进度检查"
+                color="primary" density="compact" persistent-hint class="mb-3"
+                hint="每 2 分钟检查离线任务进度；不使用 115 离线下载时可关闭。"></v-switch>
               <v-row>
                 <v-col cols="12">
                   <div class="d-flex flex-column">

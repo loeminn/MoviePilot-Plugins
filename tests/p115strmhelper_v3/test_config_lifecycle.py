@@ -22,6 +22,7 @@ PLUGIN = Path(__file__).resolve().parents[2] / "plugins.v3/p115strmhelper"
 
 class Config(BaseModel):
     enabled: bool = True
+    offline_status_enabled: bool = True
     cookies: str = "account-A"
     cron_full_sync_strm: str = "0 1 * * *"
     timing_full_sync_strm: bool = True
@@ -114,7 +115,7 @@ def test_save_refreshes_real_routes_and_declared_cron_services(runtime):
         runtime.calls.append("refresh")
         jobs.clear()
         if runtime.config.enabled:
-            jobs.update({job["id"]: job["trigger"] for job in owner.get_service()})
+            jobs.update({job["id"]: job["trigger"] for job in (owner.get_service() or [])})
         registry.update(plugin_id, "add")
 
     def initialize(plugin_id, conf):
@@ -143,6 +144,13 @@ def test_save_refreshes_real_routes_and_declared_cron_services(runtime):
     assert jobs[job_id] == "0 3 * * *"
     assert asyncio.run(save({"timing_full_sync_strm": False}))["code"] == 0
     assert job_id not in jobs
+    offline_job = "P115StrmHelper_offline_status"
+    assert jobs[offline_job] == "*/2 * * * *"
+    assert asyncio.run(save({"offline_status_enabled": False}))["code"] == 0
+    assert runtime.storage["offline_status_enabled"] is False
+    assert jobs == {}
+    assert asyncio.run(save({"offline_status_enabled": True}))["code"] == 0
+    assert jobs[offline_job] == "*/2 * * * *"
     assert asyncio.run(save({"timing_full_sync_strm": True}))["code"] == 0
     assert job_id in jobs
     assert asyncio.run(save({"enabled": False}))["code"] == 0
@@ -230,3 +238,20 @@ def test_refresh_failure_releases_save_lock(runtime):
         runtime.helper["save_plugin_config"]({"cookies": "account-B"})
     assert runtime.helper["_config_update_lock"].acquire(blocking=False)
     runtime.helper["_config_update_lock"].release()
+
+
+def test_queued_offline_callback_obeys_current_switch():
+    config = SimpleNamespace(offline_status_enabled=False)
+    namespace = {"configer": config}
+    load_functions(PLUGIN / "service/__init__.py", {"offline_status"}, namespace)
+    helper = Mock()
+    owner = SimpleNamespace(offlinehelper=helper)
+    callback = namespace["offline_status"]
+    callback(owner)
+    helper.pull_status_to_task.assert_not_called()
+    config.offline_status_enabled = True
+    callback(owner)
+    helper.pull_status_to_task.assert_called_once_with()
+    config.offline_status_enabled = False
+    callback(owner)
+    helper.pull_status_to_task.assert_called_once_with()

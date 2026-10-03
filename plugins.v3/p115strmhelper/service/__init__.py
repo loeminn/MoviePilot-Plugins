@@ -673,7 +673,7 @@ class ServiceHelper:
         """
         监控 115 网盘离线下载进度
         """
-        if self.offlinehelper:
+        if configer.offline_status_enabled and self.offlinehelper:
             self.offlinehelper.pull_status_to_task()
 
     def start_fuse(self, mountpoint: Optional[str] = None, readdir_ttl: float = 60):
