@@ -1,6 +1,7 @@
 """使用真实 SQLite、Alembic 和可选 PostgreSQL 验证旧库迁移"""
 
 import importlib.util
+import ast
 import os
 from pathlib import Path
 import sqlite3
@@ -8,6 +9,7 @@ import sys
 from types import ModuleType, SimpleNamespace
 from uuid import uuid4
 from unittest.mock import Mock
+from threading import RLock
 
 from alembic import command
 from alembic.config import Config
@@ -304,3 +306,45 @@ def test_actual_postgres_models_write_large_ids(real_models, postgres, model_nam
         assert item.file_id == 9000000000003
     else:
         assert item.path == "/large"
+
+
+@pytest.mark.parametrize("fail_import", [False, True])
+def test_prepare_binds_only_after_postgres_import(tmp_path, fail_import):
+    source = tmp_path / "legacy.db"
+    calls = []
+    handle = SimpleNamespace(schema="plugin_test")
+    class Plugin:
+        def get_database_migrations(self):
+            return MIGRATIONS
+
+        def get_data_path(self):
+            return tmp_path
+
+        def get_database(self):
+            calls.append("handle")
+            return handle
+
+    def importing(*args, **kwargs):
+        calls.append("import")
+        if fail_import:
+            raise RuntimeError("import failed")
+        return True
+
+    namespace = dict(
+        Any=object, Dict=dict, Path=Path, _prepare_lock=RLock(),
+        settings=SimpleNamespace(DB_TYPE="postgresql"), logger=Mock(),
+        ConfigManager=SimpleNamespace(_get_default_plugin_db_path=lambda: source),
+        ensure_database=lambda *args, **kwargs: calls.append("ensure"),
+        import_postgres_database=importing,
+        bind_handle=lambda value: calls.append("bind"),
+    )
+    tree = ast.parse((PLUGIN / "core/database.py").read_text("utf8"))
+    method = next(n for n in tree.body if isinstance(n, ast.FunctionDef) and n.name == "prepare_database")
+    exec(compile(ast.Module(body=[method], type_ignores=[]), "prepare-database", "exec"), namespace)
+    if fail_import:
+        with pytest.raises(RuntimeError, match="import failed"):
+            namespace["prepare_database"](Plugin(), {"PLUGIN_DB_PATH": str(source)})
+        assert calls == ["ensure", "handle", "import"]
+    else:
+        namespace["prepare_database"](Plugin(), {"PLUGIN_DB_PATH": str(source)})
+        assert calls == ["ensure", "handle", "import", "bind"]

@@ -5,6 +5,7 @@ from threading import RLock
 from typing import Any, Dict
 
 from app.sdk.config import settings
+from app.sdk.logging import logger
 from app.db.plugin.registry import ensure_database
 
 from ..db_manager import bind_handle
@@ -30,13 +31,19 @@ def prepare_database(plugin: Any, config: Dict[str, Any]) -> None:
                 and source.resolve() != ConfigManager._get_default_plugin_db_path().resolve()):
             raise RuntimeError(f"自定义旧库路径不存在，拒绝以空库启动：{source}")
         if database_type == "sqlite":
-            import_legacy_database(source, target, migrations)
+            if import_legacy_database(source, target, migrations):
+                logger.info(f"【数据库】旧库已导入宿主管理 SQLite：{target}；原库保留：{source}")
         # 宿主默认在 init_plugin 返回后建表，业务线程启动前须提前完成同一准备流程
         ensure_database(plugin.__class__.__name__, migrations=migrations)
         handle = plugin.get_database()
         if database_type == "postgresql":
-            import_postgres_database(
+            if not handle.schema:
+                raise RuntimeError("宿主未分配插件独立 PostgreSQL schema，拒绝写入")
+            imported = import_postgres_database(
                 handle, source, migrations, plugin.get_data_path(),
                 allow_missing=source.resolve() == ConfigManager._get_default_plugin_db_path().resolve(),
             )
+            if imported:
+                logger.info(f"【数据库】旧库已导入 PostgreSQL schema {handle.schema}；原库保留：{source}")
         bind_handle(handle)
+        logger.info(f"【数据库】宿主管理数据库已就绪：{database_type}")

@@ -2,7 +2,7 @@
 
 本仓库仅维护 **115 网盘 STRM 助手的 MoviePilot V3 适配版**，基于 [DDSRem-Dev/MoviePilot-Plugins](https://github.com/DDSRem-Dev/MoviePilot-Plugins) 原版开发，保留原作者署名及许可证。
 
-当前版本 **3.0.6**，目标宿主 **MoviePilot >=3.1.0**。[下载发行版](https://github.com/loeminn/MoviePilot-Plugins/releases/tag/P115StrmHelper_v3.0.6)。尚未完成真实 MP V3 / 115 账号端到端联调。
+当前版本 **3.1.0**，目标宿主 **MoviePilot >=3.1.0**。[下载发行版](https://github.com/loeminn/MoviePilot-Plugins/releases/tag/P115StrmHelper_v3.1.0)。尚未完成真实 MP V3 / 115 账号端到端联调。
 
 - 使用 MP 原生整理，禁用旧版批量整理接管；保留“监控 MP 整理生成 STRM”
 - 保留 302、全量/增量同步、分享等原有功能；302 核心逻辑保持原版
@@ -22,6 +22,8 @@
 
 [V3 适配说明](plugins.v3/p115strmhelper/README.md) · [上游使用文档](docs/p115strmhelper/README.md)
 
+3.1.0 接入宿主管理的插件数据库，支持 SQLite 和 PostgreSQL；保留旧 SQLite 库并进行一次性校验导入。升级前请阅读[数据库迁移与恢复说明](docs/p115strmhelper/DATABASE_V3.md)。
+
 3.0.6 修复分享清理记录的媒体标识映射和 HDHive 浏览器通知权限脚本；新增 6 项媒体身份测试及 3 项实际浏览器脚本测试。
 
 3.0.5 串行执行详情页自定义配置保存，避免并发更新互相覆盖；分享同步在保存失败时停止并显示错误。新增 2 项后端测试、3 项前端测试。
@@ -35,7 +37,7 @@
 ## 验证与构建
 
 ```sh
-python -m pip install pytest 'pydantic>=2,<3' 'httpx[http2]~=0.28.1' orjson 'fastapi~=0.141.1'
+python -m pip install pytest 'pydantic>=2,<3' 'httpx[http2]~=0.28.1' orjson 'fastapi~=0.141.1' 'sqlalchemy>=2,<3' 'alembic>=1.16,<2' 'psycopg[binary]>=3,<4'
 python -m pytest tests/p115strmhelper_v3 -q
 python -m unittest discover -s plugins.v3/p115strmhelper/tests -p test_r302_concurrency.py -q
 ```
@@ -44,7 +46,7 @@ python -m unittest discover -s plugins.v3/p115strmhelper/tests -p test_r302_conc
 
 前端在 `frontend/p115strmhelper` 中运行 `npm ci`，设置 `MP_PLUGIN_V3=1` 后运行 `npm run build`。发布工作流会自动构建前端并打包。
 
-本地已有 41 项适配测试和 6 项 302 并发测试通过。运行适配测试前，将 `MOVIEPILOT_SOURCE` 环境变量设为 MoviePilot 源码目录，可执行其中两项真实宿主调度方法测试及一项动态路由注册测试；未设置时这三项及六项媒体身份测试会跳过。CI 固定检出已核对的宿主提交并执行全部测试。测试使用数据库和网络边界替身，不等于真实宿主端到端验证。
+适配测试共 61 项，其中 10 项使用真实 PostgreSQL；本地精简环境运行 51 项，其余 10 项在配置了 PostgreSQL 的 CI 中运行。另有 6 项 302 并发测试。运行适配测试前，将 `MOVIEPILOT_SOURCE` 环境变量设为 MoviePilot 源码目录，可执行其中两项真实宿主调度方法测试及一项动态路由注册测试；未设置时宿主相关测试会跳过。CI 固定检出已核对的宿主提交并执行全部测试。测试使用数据库和网络边界替身，不等于真实宿主端到端验证。
 
 配置持久化使用插件基类接口，历史查询使用公开 Oper；保存后重新初始化、模糊匹配及分身拒绝行为已有回归测试。
 
