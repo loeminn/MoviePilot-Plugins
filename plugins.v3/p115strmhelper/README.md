@@ -1,6 +1,6 @@
 # 115 网盘 STRM 助手：MoviePilot V3 适配版
 
-版本：3.1.0；目标宿主：MoviePilot >=3.1.0。发行包见本仓库 Releases；尚未完成真实 MP/115 账号端到端联调。
+版本：3.1.1；目标宿主：MoviePilot >=3.1.0。发行包见本仓库 Releases；尚未完成真实 MP/115 账号端到端联调。
 
 基于 DDSRem-Dev/MoviePilot-Plugins 的 `2d6f93a5a80930e4d8001452439b81039cf2c50b` 原版 V2 实现移植，未合入 zkmydgth 分支。宿主源码核对版本为 `2e24c4063ff11eacd1f431708d906600d634046d`，并核对 v3.1.0 的公开调度入口。
 
@@ -16,6 +16,10 @@
 - 302 算法、URL 构造、缓存和网盘请求逻辑保持上游实现，仅迁移依赖的宿主导入路径。
 - Rust 扩展不可用时，目录树和分享扫描使用 Python 后端，全量同步使用上游 Python 分支；可能比 Rust 后端慢。随源码保留的 wheel 均来自原版，未重新编译或引入其他分支二进制。
 - 本仓库仅保留 V3 实现。前端通过 `MP_PLUGIN_V3=1` 或 `PLUGIN_DIR=plugins.v3/p115strmhelper` 选择 V3 构建。
+
+## 3.1.1 PostgreSQL 批量替换修复
+
+统一整数与数字字符串主键后再去重，保留最后一条记录；写入前校验 64 位整数范围，不修改调用方数据。补充五类模型混合 ID 和唯一路径冲突测试。
 
 ## 3.1.0 宿主管理数据库
 
@@ -59,7 +63,7 @@
 
 ## 本地验证
 
-- 设置 `MOVIEPILOT_SOURCE` 指向已核对的 MP 源码后，`python -m pytest tests/p115strmhelper_v3 -q`：61 项，含 10 项真实 PostgreSQL 测试，覆盖配置保存后重新初始化、公开 Oper 模糊查询、分身拒绝、默认值、接管配置禁用、Python 后端、原生整理事件到文件写入，以及调度回调的主插件实例归属、同实例服务重建保留与旧实例任务清理；不设置该变量时三项宿主合同测试及六项媒体身份测试会跳过
+- 设置 `MOVIEPILOT_SOURCE` 指向已核对的 MP 源码后，`python -m pytest tests/p115strmhelper_v3 -q`：68 项，含 10 项真实 PostgreSQL 测试，覆盖配置保存后重新初始化、公开 Oper 模糊查询、分身拒绝、默认值、接管配置禁用、Python 后端、原生整理事件到文件写入，以及调度回调的主插件实例归属、同实例服务重建保留与旧实例任务清理；不设置该变量时三项宿主合同测试及六项媒体身份测试会跳过
 - `python -m unittest discover -s plugins.v3/p115strmhelper/tests -p test_r302_concurrency.py -q`：6 项上游 302 并发测试通过
 - Python 源码编译检查及 V3 前端生产构建通过
 - 60 个宿主导入符号在目标源码中找到；这是静态核对，不能证明全部运行时调用兼容
