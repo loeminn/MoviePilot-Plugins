@@ -135,7 +135,7 @@ class Folder(P115StrmHelperBase):
         descendants = path.rstrip("/") + "/"
         db.execute(delete(Folder).where(or_(
             Folder.path == path,
-            Folder.path.startswith(descendants, autoescape=True),
+            func.substr(Folder.path, 1, len(descendants)) == descendants,
         )))
         return True
 
@@ -161,7 +161,7 @@ class Folder(P115StrmHelperBase):
             .where(
                 or_(
                     Folder.path == old_prefix,
-                    Folder.path.startswith(f"{old_prefix}/", autoescape=True),
+                    func.substr(Folder.path, 1, len(f"{old_prefix}/")) == f"{old_prefix}/",
                 )
             )
             .values(
@@ -185,7 +185,7 @@ class Folder(P115StrmHelperBase):
         :return int: 实际删除的总行数
         """
         all_ids = set(
-            db.execute(select(Folder.id).where(Folder.path.startswith(path_prefix, autoescape=True)))
+            db.execute(select(Folder.id).where(func.substr(Folder.path, 1, len(path_prefix)) == path_prefix))
             .scalars()
             .all()
         )

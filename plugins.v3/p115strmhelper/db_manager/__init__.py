@@ -1,3 +1,4 @@
+from contextlib import contextmanager
 from threading import RLock
 from time import sleep
 from typing import Any, Generator, List, Optional, Self, Tuple
@@ -111,6 +112,31 @@ def update_args_db(args: tuple, kwargs: dict, db: Session) -> Tuple[tuple, dict]
     return args, kwargs
 
 
+@contextmanager
+def db_transaction(db: Optional[Session] = None) -> Generator:
+    """组合模型写入为原子事务，外部会话使用保存点并由调用方最终提交"""
+    owned = db is None
+    if owned:
+        db = _current_handle().session()
+    previous = db.info.get("p115_atomic", False)
+    try:
+        if not owned and db.get_bind().dialect.name == "sqlite":
+            connection = db.connection()
+            # sqlite3 旧事务模式不会为 SAVEPOINT 自动开启外层事务
+            if not connection.connection.driver_connection.in_transaction:
+                connection.exec_driver_sql("BEGIN")
+        with (db.begin() if owned else db.begin_nested()):
+            db.info["p115_atomic"] = True
+            yield db
+    finally:
+        if previous:
+            db.info["p115_atomic"] = previous
+        else:
+            db.info.pop("p115_atomic", None)
+        if owned:
+            db.close()
+
+
 def db_update(func):
     """
     数据库更新类操作装饰器，第一个参数必须是数据库会话或存在db参数
@@ -130,6 +156,9 @@ def db_update(func):
         # 是否关闭数据库会话
         _close_db = False
         db = get_args_db(args, kwargs)
+        if db is not None and db.info.get("p115_atomic"):
+            # 组合事务统一提交、回滚；不能在内部方法提交或重试部分操作
+            return func(*args, **kwargs)
         if not db:
             # 每个插件实例线程绑定各自独立的会话，不同实例互不复用
             db = _current_handle().session()

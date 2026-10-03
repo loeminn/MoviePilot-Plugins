@@ -329,24 +329,76 @@ def test_path_mutations_preserve_unrelated_records(real_models, request, backend
         # 同时覆盖 SQL 通配符、默认转义字符与 PostgreSQL 反斜杠
         for prefix in ("/TV_A", "/TV%A", "/TV^A", "/TV\\A"):
             original = [prefix, prefix + "/keep", prefix + "/stale",
-                        "/TVXA/unrelated", prefix + "-old/other"]
+                        prefix.lower() + "/unrelated", prefix + "-old/other",
+                        "/TVXA/unrelated"]
             seed(original)
             model.update_path_prefix(None, prefix, "/renamed")
             assert paths() == {1: "/renamed", 2: "/renamed/keep", 3: "/renamed/stale",
-                               4: original[3], 5: original[4]}
+                               4: original[3], 5: original[4], 6: original[5]}
             seed(original)
             assert model.remove_by_path_prefix_not_in_ids(None, prefix + "/", {2}) == 1
             assert paths() == {i: path for i, path in enumerate(original, 1) if i != 3}
             for suffix in ("", "/"):
                 seed(original)
                 model.remove_by_path_batch(None, prefix + suffix)
-                assert paths() == {4: original[3], 5: original[4]}
+                assert paths() == {4: original[3], 5: original[4], 6: original[5]}
         seed(["/", "/Movies/a", "/Movies-old/b"])
         with pytest.raises(ValueError, match="不能为空"):
             model.remove_by_path_batch(None, "")
         assert len(paths()) == 3
         model.remove_by_path_batch(None, "/")
         assert paths() == {}
+    finally:
+        if backend == "sqlite":
+            engine.dispose()
+
+
+@pytest.mark.parametrize("backend", ["sqlite", "postgresql"])
+def test_rename_atomicity_and_open_table_routing(real_models, request, backend):
+    manager, models = real_models
+    from sqlalchemy.orm import sessionmaker
+    from sqlalchemy.exc import IntegrityError
+    engine = (request.getfixturevalue("postgres").engine if backend == "postgresql"
+              else create_engine("sqlite://"))
+    if backend == "sqlite":
+        manager.P115StrmHelperBase.metadata.create_all(engine)
+    manager.bind_handle(SimpleNamespace(session=sessionmaker(bind=engine)))
+    tree = ast.parse((PLUGIN / "db_manager/file_oper.py").read_text("utf8"))
+    cls = next(n for n in tree.body if isinstance(n, ast.ClassDef) and n.name == "FileDbHelper")
+    method = next(n for n in cls.body if isinstance(n, ast.FunctionDef) and n.name == "update_path_prefix_batch")
+    namespace = dict(File=models.File, Folder=models.Folder, db_transaction=manager.db_transaction)
+    exec(compile(ast.Module(body=[method], type_ignores=[]), "actual-rename-method", "exec"), namespace)
+    rename = namespace["update_path_prefix_batch"]
+    try:
+        models.File.upsert_batch_by_list(None, [dict(id=1, parent_id=0, path="/old/a")])
+        models.Folder.upsert_batch_by_list(None, [
+            dict(id=1, parent_id=0, name="old", path="/old"),
+            dict(id=2, parent_id=0, name="new", path="/new"),
+        ])
+        with pytest.raises(IntegrityError):
+            rename(SimpleNamespace(_db=None), "/old", "/new")
+        assert models.File.get(None, 1).path == "/old/a"
+        assert models.Folder.get(None, 1).path == "/old"
+        rename(SimpleNamespace(_db=None), "/old", "/ok")
+        assert models.File.get(None, 1).path == "/ok/a"
+        assert models.Folder.get(None, 1).path == "/ok"
+        # 外部事务不能被组合写入提前提交，失败后也能继续由调用方处理
+        with Session(engine) as db:
+            with pytest.raises(IntegrityError):
+                rename(SimpleNamespace(_db=db), "/ok", "/new")
+            assert "p115_atomic" not in db.info
+            rename(SimpleNamespace(_db=db), "/ok", "/external")
+            db.rollback()
+        assert models.File.get(None, 1).path == "/ok/a"
+        assert models.Folder.get(None, 1).path == "/ok"
+        module = load("_p115_model_tests.db_manager.open_file_oper", PLUGIN / "db_manager/open_file_oper.py")
+        oper = module.OpenFileOper()
+        oper.upsert_batch([dict(id=10, parent_id=0, name="movie", path="/movie.mkv")], "file")
+        assert models.OpenFile.get(None, 10) is not None
+        assert models.OpenFolder.get(None, 10) is None
+        oper.upsert_batch([dict(id=20, parent_id=0, name="folder", path="/folder")], "folder")
+        assert models.OpenFolder.get(None, 20) is not None
+        assert models.OpenFile.get(None, 20) is None
     finally:
         if backend == "sqlite":
             engine.dispose()

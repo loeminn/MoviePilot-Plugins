@@ -30,7 +30,7 @@ class OpenFileOper(DbOper):
         :param type (str): 数据类型，"file" 或 "folder"
         """
         if type == "file":
-            OpenFile.upsert_batch_by_list(self._db, batch)
+            return OpenFile.upsert_batch_by_list(self._db, batch)
         return OpenFolder.upsert_batch_by_list(self._db, batch)
 
     def get_parent_path_by_id(self, parent_id: int) -> str:

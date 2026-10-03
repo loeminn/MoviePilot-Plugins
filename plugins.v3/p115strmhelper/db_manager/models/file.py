@@ -126,7 +126,7 @@ class File(P115StrmHelperBase):
         descendants = path.rstrip("/") + "/"
         db.execute(delete(File).where(or_(
             File.path == path,
-            File.path.startswith(descendants, autoescape=True),
+            func.substr(File.path, 1, len(descendants)) == descendants,
         )))
         return True
 
@@ -176,7 +176,7 @@ class File(P115StrmHelperBase):
             .where(
                 or_(
                     File.path == old_prefix,
-                    File.path.startswith(f"{old_prefix}/", autoescape=True),
+                    func.substr(File.path, 1, len(f"{old_prefix}/")) == f"{old_prefix}/",
                 )
             )
             .values(
@@ -198,7 +198,7 @@ class File(P115StrmHelperBase):
         :param ids (Set): 需要保留的 ID 集合
         """
         all_ids = set(
-            db.execute(select(File.id).where(File.path.startswith(path_prefix, autoescape=True)))
+            db.execute(select(File.id).where(func.substr(File.path, 1, len(path_prefix)) == path_prefix))
             .scalars()
             .all()
         )

@@ -1,7 +1,7 @@
 from typing import Dict, Optional, List, Set
 from pathlib import Path
 
-from . import DbOper
+from . import DbOper, db_transaction
 from .models.folder import Folder
 from .models.file import File
 from ..utils.exception import PathNotInKey
@@ -452,9 +452,10 @@ class FileDbHelper(DbOper):
 
         :return bool: 操作成功返回 True
         """
-        File.update_path_prefix(self._db, old_prefix, new_prefix)
-        if not only_file:
-            Folder.update_path_prefix(self._db, old_prefix, new_prefix)
+        with db_transaction(self._db) as db:
+            File.update_path_prefix(db, old_prefix, new_prefix)
+            if not only_file:
+                Folder.update_path_prefix(db, old_prefix, new_prefix)
         return True
 
     def remove_ghost_records(
