@@ -49,11 +49,18 @@ def test_service_cannot_load_legacy_takeover():
     assert "from ..helper.transfer" not in source
 
 
-def test_manifest_and_source_version_match():
+def test_manifest_and_source_version_match() -> None:
+    """
+    校验 V3 源码、清单和最新更新记录的版本一致
+    """
     entry = json.loads((ROOT / "package.v3.json").read_text("utf8"))["P115StrmHelper"]
     namespace = {}
     exec((PLUGIN / "version.py").read_text("utf8"), namespace)
-    assert entry["version"] == namespace["VERSION"] == "3.1.1"
+    assert entry["version"] == namespace["VERSION"]
+    version_parts = entry["version"].split(".")
+    assert len(version_parts) == 3 and version_parts[0] == "3"
+    assert all(part.isascii() and part.isdecimal() for part in version_parts)
+    assert next(iter(entry["history"])) == f"v{entry['version']}"
     assert entry["system_version"] == ">=3.1.0"
     assert entry["release"] is True
 
