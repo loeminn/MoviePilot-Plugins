@@ -1,5 +1,6 @@
 """跨数据库保留按主键或唯一路径替换的批量写入语义"""
 
+import re
 from typing import Any, Dict, List
 
 from sqlalchemy import delete, insert, or_, text
@@ -16,6 +17,16 @@ def replace_batch(db: Session, model: Any, batch: List[Dict]) -> None:
         return
     if db.get_bind().dialect.name != "postgresql":
         raise RuntimeError("115 STRM 数据库仅支持 SQLite 和 PostgreSQL")
+    # PostgreSQL 将数字字符串与整数视为同一主键，去重也必须使用相同类型
+    normalized = []
+    for row in batch:
+        key = row["id"]
+        if isinstance(key, str) and re.fullmatch(r"[+-]?[0-9]+", key.strip()):
+            key = int(key)
+        if type(key) is not int or not -(2**63) <= key < 2**63:
+            raise ValueError("115 STRM 记录 id 必须是 64 位整数或整数字符串")
+        normalized.append({**row, "id": key})
+    batch = normalized
     table = model.__table__
     quoted = db.get_bind().dialect.identifier_preparer.quote(table.name)
     # 同时存在 id/path 两个唯一键，串行替换避免两个 upsert 在不同约束上互相冲突

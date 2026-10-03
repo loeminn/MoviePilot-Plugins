@@ -2,6 +2,7 @@
 
 import importlib.util
 import ast
+from copy import deepcopy
 import os
 from pathlib import Path
 import sqlite3
@@ -223,7 +224,11 @@ def test_postgres_replace_matches_sqlite_for_both_unique_keys(modules, postgres)
         [{"id": 1, "parent_id": 0, "path": "/a"}, {"id": 2, "parent_id": 0, "path": "/b"}],
         [{"id": 3, "parent_id": 0, "path": "/a"}, {"id": 3, "parent_id": 0, "path": "/b"},
          {"id": 4, "parent_id": 0, "path": "/b"}, {"id": 3, "parent_id": 0, "path": None}],
+        [{"id": "03", "parent_id": 0, "path": "/first"},
+         {"id": 3, "parent_id": 0, "path": "/second"},
+         {"id": "  +3  ", "parent_id": 0, "path": "/last"}],
     ]
+    original = deepcopy(batches)
     sqlite = create_engine("sqlite://")
     Base.metadata.create_all(sqlite)
     results = []
@@ -234,9 +239,19 @@ def test_postgres_replace_matches_sqlite_for_both_unique_keys(modules, postgres)
                     modules.replace.replace_batch(db, File, batch)
                     db.commit()
                 results.append(db.execute(text("SELECT id,path FROM files ORDER BY id")).all())
-        assert results[0] == results[1] == [(3, None), (4, "/b")]
+        assert results[0] == results[1] == [(3, "/last"), (4, "/b")]
+        assert batches == original
     finally:
         sqlite.dispose()
+
+
+@pytest.mark.parametrize("key", [None, True, 1.5, "1.5", "bad", 2**63, -(2**63)-1])
+def test_postgres_invalid_id_fails_before_database_changes(modules, key):
+    db = Mock()
+    db.get_bind.return_value.dialect.name = "postgresql"
+    with pytest.raises(ValueError, match="64 位整数"):
+        modules.replace.replace_batch(db, Mock(), [{"id": 1}, {"id": key}])
+    db.execute.assert_not_called()
 
 
 @pytest.fixture
@@ -299,9 +314,13 @@ def test_actual_postgres_models_write_large_ids(real_models, postgres, model_nam
         row.update(file_id=9000000000003, type=1, file_category=1, file_type=1)
     else:
         row.update(path="/large", name="large")
-    model.upsert_batch_by_list(None, [row])
+    last = {**row, "id": str(row["id"]), "parent_id": 9000000000004}
+    batch = [row, last]
+    original = deepcopy(batch)
+    model.upsert_batch_by_list(None, batch)
+    assert batch == original
     item = model.get(None, 9000000000001)
-    assert item.parent_id == 9000000000002
+    assert item.parent_id == 9000000000004
     if model_name == "LifeEvent":
         assert item.file_id == 9000000000003
     else:
