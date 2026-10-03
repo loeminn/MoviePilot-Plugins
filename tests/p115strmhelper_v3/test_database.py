@@ -404,6 +404,45 @@ def test_rename_atomicity_and_open_table_routing(real_models, request, backend):
             engine.dispose()
 
 
+@pytest.mark.parametrize("backend", ["sqlite", "postgresql"])
+def test_helper_upsert_preserves_replacement_order(real_models, request, monkeypatch, backend):
+    manager, models = real_models
+    from sqlalchemy.orm import sessionmaker
+    engine = (request.getfixturevalue("postgres").engine if backend == "postgresql"
+              else create_engine("sqlite://"))
+    if backend == "sqlite":
+        manager.P115StrmHelperBase.metadata.create_all(engine)
+    manager.bind_handle(SimpleNamespace(session=sessionmaker(bind=engine)))
+    # 只替换不参与写入的宿主类型，加载实际 helper、模型及事务装饰器
+    schemas = ModuleType("app.schemas")
+    schemas.FileItem = object
+    monkeypatch.setitem(sys.modules, "app.schemas", schemas)
+    utils = ModuleType("_p115_model_tests.utils")
+    utils.__path__ = [str(PLUGIN / "utils")]
+    monkeypatch.setitem(sys.modules, utils.__name__, utils)
+    module = load("_p115_model_tests.db_manager.file_oper", PLUGIN / "db_manager/file_oper.py")
+    helper = module.FileDbHelper()
+    try:
+        for model in (models.File, models.Folder):
+            model.upsert_batch_by_list(None, [dict(id=2, parent_id=0, name="old", path="/first")])
+        batch = []
+        for key, path in [(1, "/first"), ("1", "/middle"), (1, "/last"),
+                          (3, "/shared"), (4, "/shared"), (3, "/other")]:
+            for table in ("files", "folders"):
+                batch.append(dict(table=table, data=dict(id=key, parent_id=0, name=path, path=path)))
+        original = deepcopy(batch)
+        assert helper.upsert_batch(batch)
+        assert batch == original
+        for model in (models.File, models.Folder):
+            assert {row.id: row.path for row in model.list(None)} == {
+                1: "/last", 3: "/other", 4: "/shared",
+            }
+        assert helper.upsert_batch([])
+    finally:
+        if backend == "sqlite":
+            engine.dispose()
+
+
 @pytest.mark.parametrize("model_name", ["File", "Folder", "LifeEvent", "OpenFile", "OpenFolder"])
 def test_actual_postgres_models_write_large_ids(real_models, postgres, model_name):
     manager, models = real_models

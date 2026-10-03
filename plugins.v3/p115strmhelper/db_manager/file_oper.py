@@ -228,24 +228,23 @@ class FileDbHelper(DbOper):
 
         :return bool: 操作成功返回 True
         """
-        files_data_map = {
-            entry["data"]["id"]: entry["data"]
+        # 保留每张表的输入顺序，由底层统一处理 ID 类型和唯一键替换
+        files_data = [
+            entry["data"]
             for entry in batch
             if entry.get("table") == "files" and "id" in entry.get("data", {})
-        }
+        ]
 
-        if files_data_map:
-            files_data = list(files_data_map.values())
+        if files_data:
             self.upsert_batch_by_list("files", files_data)
 
-        folders_data_map = {
-            entry["data"]["id"]: entry["data"]
+        folders_data = [
+            entry["data"]
             for entry in batch
             if entry.get("table") == "folders" and "id" in entry.get("data", {})
-        }
+        ]
 
-        if folders_data_map:
-            folders_data = list(folders_data_map.values())
+        if folders_data:
             self.upsert_batch_by_list("folders", folders_data)
 
         return True
