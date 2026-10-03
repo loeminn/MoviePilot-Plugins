@@ -60,7 +60,7 @@ from .core.config import configer
 from .core.config_update import save_plugin_config
 from .core.i18n import i18n
 from .core.message import post_message
-from .db_manager import ct_db_manager, init_database as ensure_database
+from .core.database import prepare_database
 from .mcp import MCPManager
 from .patch.u115_open import U115Patcher
 from .patch.p115disk_upload import P115DiskPatcher
@@ -186,9 +186,6 @@ class P115StrmHelper(_PluginBase):
         if not Path(configer.PLUGIN_TEMP_PATH).exists():
             Path(configer.PLUGIN_TEMP_PATH).mkdir(parents=True, exist_ok=True)
 
-        # 初始化数据库
-        self.init_database()
-
         # 实例化处理器和渲染器
         self.action_handler = ActionHandler()
         self.view_renderer = ViewRenderer()
@@ -210,10 +207,10 @@ class P115StrmHelper(_PluginBase):
 
         # 停止现有任务
         self.stop_service()
+        self.init_database()
 
         if configer.enabled:
             bind_plugin_instance(self)
-            self.init_database()
 
             if servicer.init_service():
                 self.api = Api(client=servicer.client)
@@ -233,14 +230,18 @@ class P115StrmHelper(_PluginBase):
             logger.warning(f"MCP 初始化跳过: {e}")
             self.mcp_manager = None
 
-    @logs_oper("初始化数据库")
     def init_database(self) -> bool:
         """
         初始化数据库
         """
         if not Path(configer.PLUGIN_CONFIG_PATH).exists():
             Path(configer.PLUGIN_CONFIG_PATH).mkdir(parents=True, exist_ok=True)
-        return ensure_database()
+        prepare_database(self, configer.model_dump(mode="json"))
+        return True
+
+    def get_database_migrations(self) -> str:
+        """向宿主声明插件自有数据库迁移目录"""
+        return str(Path(__file__).resolve().parent / "database" / "migrations")
 
     def get_state(self) -> bool:
         """
@@ -2228,7 +2229,6 @@ class P115StrmHelper(_PluginBase):
         unbind_plugin_instance(self)
         type(self)._rename_media_fields_cache.clear()
         servicer.stop()
-        ct_db_manager.close_database()
         U115Patcher().disable()
         P115DiskPatcher().disable()
         AppVerPatcher().disable()

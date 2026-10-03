@@ -26,6 +26,20 @@ jobs:
         run: python -m pytest tests/dependencies -q
   test:
     runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_USER: p115_test
+          POSTGRES_PASSWORD: p115_test
+          POSTGRES_DB: p115_test
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U p115_test"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
     steps:
       - uses: actions/checkout@v7
       - name: Checkout verified MoviePilot host contract
@@ -38,10 +52,11 @@ jobs:
         with:
           python-version: '3.14'
       - name: Install test dependencies
-        run: python -m pip install pytest 'pydantic>=2,<3' 'httpx[http2]~=0.28.1' orjson 'fastapi~=0.141.1'
+        run: python -m pip install pytest 'pydantic>=2,<3' 'httpx[http2]~=0.28.1' orjson 'fastapi~=0.141.1' 'sqlalchemy>=2,<3' 'alembic>=1.16,<2' 'psycopg[binary]>=3,<4'
       - name: Test V3 compatibility boundaries
         env:
           MOVIEPILOT_SOURCE: ${{ github.workspace }}/.host-contract
+          TEST_POSTGRES_URL: postgresql+psycopg://p115_test:p115_test@localhost:5432/p115_test
         run: python -m pytest tests/p115strmhelper_v3 -q
       - name: Test 302 concurrency
         run: python -m unittest discover -s plugins.v3/p115strmhelper/tests -p test_r302_concurrency.py -q

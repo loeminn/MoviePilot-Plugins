@@ -2,7 +2,7 @@ from typing import List, Dict
 
 from sqlalchemy import Column, Integer, String, BigInteger, select
 from sqlalchemy.orm import Session
-from sqlalchemy.dialects.sqlite import insert as sqlite_insert
+from ..replace import replace_batch
 
 from ...db_manager import db_update, db_query, P115StrmHelperBase
 
@@ -38,8 +38,7 @@ class LifeEvent(P115StrmHelperBase):
 
         :return bool: 始终返回 True
         """
-        stmt = sqlite_insert(LifeEvent).prefix_with("OR REPLACE")
-        db.execute(stmt, batch)
+        replace_batch(db, LifeEvent, batch)
         return True
 
     @staticmethod

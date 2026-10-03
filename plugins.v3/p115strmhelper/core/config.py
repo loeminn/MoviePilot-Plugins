@@ -308,26 +308,26 @@ class ConfigManager(BaseModel):
     PLUSIN_NAME: str = Field(
         default="P115StrmHelper", min_length=1, description="插件名称"
     )
-    DB_WAL_ENABLE: bool = Field(default=True, description="是否开启数据库WAL模式")
+    DB_WAL_ENABLE: bool = Field(default=True, description="旧版 WAL 设置，宿主管理数据库后由 MP 数据库设置控制")
     PLUGIN_CONFIG_PATH: Path = Field(
         default_factory=lambda: ConfigManager._get_default_plugin_config_path(),
         description="插件配置目录",
     )
     PLUGIN_DB_PATH: Path = Field(
         default_factory=lambda: ConfigManager._get_default_plugin_db_path(),
-        description="插件数据库目录",
+        description="旧 SQLite 数据库路径，仅首次迁移时读取；当前库由 MP 管理",
     )
     PLUGIN_DATABASE_SCRIPT_LOCATION: Path = Field(
         default_factory=lambda: (
             ConfigManager._get_default_plugin_database_script_location()
         ),
-        description="插件数据库表目录",
+        description="旧版迁移脚本目录，宿主管理数据库后忽略",
     )
     PLUGIN_DATABASE_VERSION_LOCATIONS: List[str] = Field(
         default_factory=lambda: [
             str(ConfigManager._get_default_plugin_config_path() / "database/versions")
         ],
-        description="插件数据库版本目录列表",
+        description="旧版迁移脚本位置，宿主管理数据库后忽略",
     )
     PLUGIN_TEMP_PATH: Path = Field(
         default_factory=lambda: ConfigManager._get_default_plugin_temp_path(),
