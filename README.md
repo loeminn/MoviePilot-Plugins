@@ -2,7 +2,7 @@
 
 本仓库仅维护 **115 网盘 STRM 助手的 MoviePilot V3 适配版**，基于 [DDSRem-Dev/MoviePilot-Plugins](https://github.com/DDSRem-Dev/MoviePilot-Plugins) 原版开发，保留原作者署名及许可证。
 
-当前版本 **3.1.0**，目标宿主 **MoviePilot >=3.1.0**。[下载发行版](https://github.com/loeminn/MoviePilot-Plugins/releases/tag/P115StrmHelper_v3.1.0)。尚未完成真实 MP V3 / 115 账号端到端联调。
+当前版本 **3.1.1**，目标宿主 **MoviePilot >=3.1.0**。[下载发行版](https://github.com/loeminn/MoviePilot-Plugins/releases/tag/P115StrmHelper_v3.1.1)。尚未完成真实 MP V3 / 115 账号端到端联调。
 
 - 使用 MP 原生整理，禁用旧版批量整理接管；保留“监控 MP 整理生成 STRM”
 - 保留 302、全量/增量同步、分享等原有功能；302 核心逻辑保持原版
@@ -22,7 +22,7 @@
 
 [V3 适配说明](plugins.v3/p115strmhelper/README.md) · [上游使用文档](docs/p115strmhelper/README.md)
 
-离线下载进度检查可在「网盘管理 → 网盘整理 → 离线下载」中关闭，保存后停止每两分钟轮询。开关默认开启以保留原有行为；关闭期间不刷新离线任务进度。
+3.1.1 新增离线下载进度检查开关，可在「网盘管理 → 网盘整理 → 离线下载」中关闭，保存后停止每两分钟轮询。开关默认开启以保留原有行为；关闭后也不再通过该检查触发离线完成后的整理，手动查询任务列表不受影响。
 
 3.1.0 汇总宿主管理数据库及全部后续修复，可从 3.0.6 直接升级。支持 SQLite 和 PostgreSQL，包含旧库备份与校验导入、迁移并发保护、批量 ID/路径替换、目录重命名事务及 Open 文件写入修复。升级前请阅读[数据库迁移与恢复说明](docs/p115strmhelper/DATABASE_V3.md)。
 

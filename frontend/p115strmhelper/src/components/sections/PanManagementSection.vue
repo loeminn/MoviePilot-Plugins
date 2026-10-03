@@ -125,7 +125,7 @@
             <v-card-text>
               <v-switch v-model="config.offline_status_enabled" label="离线下载进度检查"
                 color="primary" density="compact" persistent-hint class="mb-3"
-                hint="每 2 分钟检查离线任务进度；不使用 115 离线下载时可关闭。"></v-switch>
+                hint="每 2 分钟检查离线任务；关闭后不再通过此检查触发下载完成后的整理，手动查询任务列表不受影响。不使用 115 离线下载时可关闭。"></v-switch>
               <v-row>
                 <v-col cols="12">
                   <div class="d-flex flex-column">
