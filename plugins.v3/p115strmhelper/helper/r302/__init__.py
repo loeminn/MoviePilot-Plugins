@@ -372,7 +372,7 @@ class Redirect:
             post_pickcode = pickcode
             if (
                 configer.get_config("same_playback")
-                and await r302cacher.count_by_pick_code(pickcode) > 0
+                and await r302cacher.has_pick_code(pickcode)
             ):
                 post_pickcode = await self.get_pickcode_for_copy(pickcode)
                 logger.debug(
@@ -468,7 +468,7 @@ class Redirect:
             post_pickcode = pickcode
             if (
                 configer.get_config("same_playback")
-                and await r302cacher.count_by_pick_code(pickcode) > 0
+                and await r302cacher.has_pick_code(pickcode)
             ):
                 post_pickcode = await self.get_pickcode_for_copy(pickcode)
                 logger.debug(

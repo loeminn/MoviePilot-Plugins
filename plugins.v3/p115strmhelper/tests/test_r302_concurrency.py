@@ -11,7 +11,7 @@ from time import sleep
 from types import ModuleType, SimpleNamespace
 from typing import Any, Dict, Optional, Tuple
 from unittest import IsolatedAsyncioTestCase
-from unittest.mock import AsyncMock, MagicMock
+from unittest.mock import AsyncMock, MagicMock, patch
 
 
 _PICKCODE = "a1b2c3d4e5f6g7h8i"
@@ -48,8 +48,11 @@ class _Cache:
         self.data[(pickcode, cache_ua)] = url
         self.set_calls += 1
 
-    async def count_by_pick_code(self, pickcode: str) -> int:
-        return sum(key[0] == pickcode for key in self.data)
+    async def has_pick_code(self, pickcode: str) -> bool:
+        """
+        判断测试缓存中是否存在指定文件
+        """
+        return any(key[0] == pickcode for key in self.data)
 
     def clear(self) -> None:
         self.data.clear()
@@ -223,6 +226,39 @@ class TestR302Concurrency(IsolatedAsyncioTestCase):
         """
         r302_module.r302cacher.clear()
         r302_module.logger.reset_mock()
+
+    async def test_same_playback_copies_only_when_file_cache_exists(self) -> None:
+        """
+        多端播放仅在同文件已有其他客户端缓存时复制副本
+        """
+        for mode in ("cookie", "open"):
+            for cached in (False, True):
+                with self.subTest(mode=mode, cached=cached):
+                    r302_module.r302cacher.clear()
+                    if cached:
+                        await r302_module.r302cacher.set(
+                            _PICKCODE, "OtherUA", _DOWNLOAD_URL, 4102444800
+                        )
+                    redirect = r302_module.Redirect(MagicMock())
+                    redirect.u115openhelper = _OpenDownloader()
+                    http_client = _CookieHttpClient()
+                    redirect.http_client = lambda: http_client
+                    redirect.get_pickcode_for_copy = AsyncMock(return_value="copy")
+                    redirect._delayed_remove_async = AsyncMock()
+                    with patch.object(
+                        r302_module.configer, "get_config", return_value=True
+                    ):
+                        url = await getattr(redirect, f"get_downurl_{mode}")(
+                            _PICKCODE, "Emby"
+                        )
+                    await asyncio.sleep(0)
+                    self.assertEqual(url, _DOWNLOAD_URL)
+                    self.assertEqual(
+                        redirect.get_pickcode_for_copy.await_count, int(cached)
+                    )
+                    self.assertEqual(
+                        redirect._delayed_remove_async.await_count, int(cached)
+                    )
 
     async def test_open_mode_coalesces_concurrent_cache_misses(self) -> None:
         """

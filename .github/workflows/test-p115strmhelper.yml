@@ -58,8 +58,8 @@ jobs:
           MOVIEPILOT_SOURCE: ${{ github.workspace }}/.host-contract
           TEST_POSTGRES_URL: postgresql+psycopg://p115_test:p115_test@localhost:5432/p115_test
         run: python -m pytest tests/p115strmhelper_v3 -q
-      - name: Test 302 concurrency
-        run: python -m unittest discover -s plugins.v3/p115strmhelper/tests -p test_r302_concurrency.py -q
+      - name: Test 302 cache and concurrency
+        run: python -m unittest discover -s plugins.v3/p115strmhelper/tests -p 'test_r302*.py' -q
       - name: Test transfer classification with isolated V3 SDK stubs
         run: python -m unittest discover -s plugins.v3/p115strmhelper/tests -p test_transfer_classify.py -q
       - name: Compile plugin source

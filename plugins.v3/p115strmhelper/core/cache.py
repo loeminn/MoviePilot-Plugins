@@ -207,6 +207,20 @@ class R302Cache:
             key=self._make_key(pick_code, ua_code), region=self.region
         )
 
+    async def has_pick_code(self, pick_code: str) -> bool:
+        """
+        判断指定文件是否存在下载缓存，命中后立即结束遍历
+
+        :param pick_code (str): 文件提取码
+
+        :return bool: 是否存在匹配的下载缓存
+        """
+        prefix = pick_code + self._KEY_SEPARATOR
+        async for key_str, _ in self._cache.items(region=self.region):
+            if key_str.startswith(prefix):
+                return True
+        return False
+
     async def count_by_pick_code(self, pick_code) -> int:
         """
         计算与指定 pick_code 匹配的缓存条目数量
