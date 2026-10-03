@@ -14,6 +14,7 @@ from alembic.config import Config
 from sqlalchemy.engine import URL
 
 TABLES = ("files", "folders", "life_event", "open_files", "open_folders")
+LEGACY_REVISIONS = {"294b0079357e", "2606909750bf", "d8dccb5dc598", "c76c9a1f52dc"}
 
 
 def _counts(connection: sqlite3.Connection) -> Dict[str, int]:
@@ -39,6 +40,12 @@ def import_legacy_database(source: Path, target: Path, migrations: Path) -> bool
             tables = connection.execute("SELECT name FROM sqlite_master WHERE type='table'").fetchall()
         if tables:
             _validate_existing(target)
+            with closing(sqlite3.connect(target.resolve().as_uri() + "?mode=ro", uri=True)) as connection:
+                names = {row[0] for row in tables}
+                revisions = ({row[0] for row in connection.execute("SELECT version_num FROM alembic_version")}
+                             if "alembic_version" in names else set())
+            if not revisions or revisions.issubset(LEGACY_REVISIONS):
+                return _upgrade_existing_legacy(target, migrations)
             return False
         raise RuntimeError(f"目标数据库为空，请先确认并移走该空文件后重试：{target}")
     if not source.exists():
@@ -82,3 +89,42 @@ def _validate_existing(target: Path) -> None:
         if connection.execute("PRAGMA quick_check").fetchone() != ("ok",):
             raise RuntimeError("现有插件数据库完整性检查失败，拒绝覆盖")
         _counts(connection)
+
+
+def _upgrade_existing_legacy(target: Path, migrations: Path) -> bool:
+    """已有目标仍为旧库时，保留快照并校验副本后以 SQLite 事务写回"""
+    token = uuid4().hex
+    backup = target.with_name(f"{target.name}.legacy-{token}.bak")
+    snapshot = target.with_name(f"{target.name}.snapshot-{token}.tmp")
+    migrated = target.with_name(f"{target.name}.upgrade-{token}.tmp")
+    deadline = monotonic() + 120
+
+    def progress(status: int, remaining: int, total: int) -> None:
+        if monotonic() > deadline:
+            raise TimeoutError("同路径旧库迁移超过 120 秒，请停止其他数据库访问后重试")
+
+    try:
+        with closing(sqlite3.connect(target.resolve().as_uri() + "?mode=ro", uri=True)) as source:
+            version = source.execute("PRAGMA data_version").fetchone()
+            with closing(sqlite3.connect(snapshot)) as copied:
+                source.backup(copied, pages=1024, progress=progress, sleep=0.05)
+            _validate_existing(snapshot)
+            os.replace(snapshot, backup)
+            # 沿用普通导入的完整性、revision 和升级前后行数校验
+            import_legacy_database(backup, migrated, migrations)
+            if source.execute("PRAGMA data_version").fetchone() != version:
+                raise RuntimeError("迁移期间旧库发生写入，拒绝覆盖，请停止写入后重试")
+            with closing(sqlite3.connect(migrated.resolve().as_uri() + "?mode=ro", uri=True)) as ready:
+                with closing(sqlite3.connect(target, timeout=30)) as destination:
+                    # backup 在目标事务中发布，兼容原库 WAL 及仍持有读连接的情况
+                    ready.backup(destination, pages=-1, progress=progress, sleep=0.05)
+        return True
+    except Exception as error:
+        if backup.exists():
+            raise RuntimeError(f"同路径旧库迁移失败：{error}；旧库快照保留：{backup}") from error
+        raise
+    finally:
+        # 完整旧库备份不清理，失败和成功均可供恢复
+        for path in (snapshot, migrated):
+            for suffix in ("", "-wal", "-shm", "-journal"):
+                Path(str(path) + suffix).unlink(missing_ok=True)

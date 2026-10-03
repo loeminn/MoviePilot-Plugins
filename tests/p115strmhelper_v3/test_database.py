@@ -136,6 +136,70 @@ def test_existing_empty_target_is_not_silently_accepted(modules, tmp_path):
         modules.legacy.import_legacy_database(source, target, MIGRATIONS)
 
 
+@pytest.mark.parametrize("wal", [False, True])
+def test_same_path_legacy_keeps_backup_and_migrates_once(modules, tmp_path, wal):
+    source = tmp_path / "plugin.db"
+    old_database(source)
+    db = sqlite3.connect(source)
+    try:
+        if wal:
+            db.execute("PRAGMA journal_mode=WAL")
+            db.execute("PRAGMA wal_autocheckpoint=0")
+        db.execute("INSERT INTO files(id,parent_id,path) VALUES(99,0,'/latest')")
+        db.commit()
+        assert modules.legacy.import_legacy_database(source, source, MIGRATIONS)
+        assert db.execute("SELECT version_num FROM alembic_version").fetchone() == ("p115_hostdb_310",)
+        assert db.execute("SELECT path FROM files WHERE id=99").fetchone() == ("/latest",)
+        backups = list(tmp_path.glob("*.bak"))
+        assert len(backups) == 1
+        with sqlite3.connect(backups[0]) as old:
+            assert old.execute("SELECT version_num FROM alembic_version").fetchone() == ("c76c9a1f52dc",)
+            assert old.execute("SELECT path FROM files WHERE id=99").fetchone() == ("/latest",)
+        old.close()
+        assert not modules.legacy.import_legacy_database(source, source, MIGRATIONS)
+        assert list(tmp_path.glob("*.bak")) == backups
+        assert not list(tmp_path.glob("*.tmp"))
+    finally:
+        db.close()
+
+
+def test_same_path_row_loss_refuses_to_modify_original(modules, tmp_path):
+    source = tmp_path / "plugin.db"
+    config = Config()
+    config.set_main_option("script_location", str(MIGRATIONS))
+    config.set_main_option("sqlalchemy.url", f"sqlite:///{source}")
+    command.upgrade(config, "294b0079357e")
+    with sqlite3.connect(source) as db:
+        db.executemany("INSERT INTO files(id,parent_id,path) VALUES(?,0,NULL)", [(1,), (2,)])
+    db.close()
+    original = source.read_bytes()
+    with pytest.raises(RuntimeError, match="行数发生变化"):
+        modules.legacy.import_legacy_database(source, source, MIGRATIONS)
+    assert source.read_bytes() == original
+    assert len(list(tmp_path.glob("*.bak"))) == 1
+    assert not list(tmp_path.glob("*.tmp"))
+
+
+def test_same_path_concurrent_write_refuses_publish(modules, tmp_path, monkeypatch):
+    source = tmp_path / "plugin.db"
+    old_database(source)
+    upgrade = modules.legacy._upgrade_copy
+    def write_during_upgrade(*args):
+        upgrade(*args)
+        with sqlite3.connect(source) as db:
+            db.execute("INSERT INTO files(id,parent_id,path) VALUES(99,0,'/concurrent')")
+        db.close()
+    monkeypatch.setattr(modules.legacy, "_upgrade_copy", write_during_upgrade)
+    with pytest.raises(RuntimeError, match="发生写入"):
+        modules.legacy.import_legacy_database(source, source, MIGRATIONS)
+    with sqlite3.connect(source) as db:
+        assert db.execute("SELECT path FROM files WHERE id=99").fetchone() == ("/concurrent",)
+        assert db.execute("SELECT version_num FROM alembic_version").fetchone() == ("c76c9a1f52dc",)
+    db.close()
+    monkeypatch.setattr(modules.legacy, "_upgrade_copy", upgrade)
+    assert modules.legacy.import_legacy_database(source, source, MIGRATIONS)
+
+
 @pytest.fixture
 def postgres():
     url = os.environ.get("TEST_POSTGRES_URL")

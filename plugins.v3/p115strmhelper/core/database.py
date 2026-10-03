@@ -31,8 +31,12 @@ def prepare_database(plugin: Any, config: Dict[str, Any]) -> None:
                 and source.resolve() != ConfigManager._get_default_plugin_db_path().resolve()):
             raise RuntimeError(f"自定义旧库路径不存在，拒绝以空库启动：{source}")
         if database_type == "sqlite":
+            target_existed = target.exists()
             if import_legacy_database(source, target, migrations):
-                logger.info(f"【数据库】旧库已导入宿主管理 SQLite：{target}；原库保留：{source}")
+                if target_existed:
+                    logger.info(f"【数据库】目标位置的旧库已校验升级：{target}；原库快照保留在同目录的 {target.name}.legacy-*.bak")
+                else:
+                    logger.info(f"【数据库】旧库已导入宿主管理 SQLite：{target}；原库保留：{source}")
         # 宿主默认在 init_plugin 返回后建表，业务线程启动前须提前完成同一准备流程
         ensure_database(plugin.__class__.__name__, migrations=migrations)
         handle = plugin.get_database()
