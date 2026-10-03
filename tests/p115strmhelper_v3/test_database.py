@@ -180,24 +180,81 @@ def test_same_path_row_loss_refuses_to_modify_original(modules, tmp_path):
     assert not list(tmp_path.glob("*.tmp"))
 
 
-def test_same_path_concurrent_write_refuses_publish(modules, tmp_path, monkeypatch):
+@pytest.mark.parametrize("wal", [False, True])
+def test_same_path_write_lock_covers_snapshot_and_commit(modules, tmp_path, monkeypatch, wal):
     source = tmp_path / "plugin.db"
     old_database(source)
+    if wal:
+        with sqlite3.connect(source) as db:
+            db.execute("PRAGMA journal_mode=WAL")
+        db.close()
     upgrade = modules.legacy._upgrade_copy
+    locked_upgrade = modules.legacy._upgrade_locked
+    attempts = []
+    def try_write():
+        db = sqlite3.connect(source, timeout=0)
+        try:
+            with pytest.raises(sqlite3.OperationalError, match="locked"):
+                db.execute("INSERT INTO files(id,parent_id,path) VALUES(99,0,'/concurrent')")
+            attempts.append(True)
+        finally:
+            db.close()
     def write_during_upgrade(*args):
         upgrade(*args)
-        with sqlite3.connect(source) as db:
-            db.execute("INSERT INTO files(id,parent_id,path) VALUES(99,0,'/concurrent')")
-        db.close()
+        try_write()
+    def write_before_commit(*args):
+        locked_upgrade(*args)
+        try_write()
     monkeypatch.setattr(modules.legacy, "_upgrade_copy", write_during_upgrade)
-    with pytest.raises(RuntimeError, match="发生写入"):
+    monkeypatch.setattr(modules.legacy, "_upgrade_locked", write_before_commit)
+    assert modules.legacy.import_legacy_database(source, source, MIGRATIONS)
+    assert len(attempts) == 2
+    with sqlite3.connect(source) as db:
+        db.execute("INSERT INTO files(id,parent_id,path) VALUES(99,0,'/after')")
+        assert db.execute("SELECT version_num FROM alembic_version").fetchone() == ("p115_hostdb_310",)
+    db.close()
+
+
+@pytest.mark.parametrize("revision", ["294b0079357e", "c76c9a1f52dc"])
+def test_same_path_upgrade_error_rolls_back_ddl_and_data(modules, tmp_path, monkeypatch, revision):
+    source = tmp_path / "plugin.db"
+    config = Config()
+    config.set_main_option("script_location", str(MIGRATIONS))
+    config.set_main_option("sqlalchemy.url", f"sqlite:///{source}")
+    command.upgrade(config, revision)
+    with sqlite3.connect(source) as db:
+        db.execute("INSERT INTO files(id,parent_id,path) VALUES(1,0,'/a')")
+    db.close()
+    upgrade = modules.legacy._upgrade_locked
+    def fail_after_upgrade(connection, migrations):
+        upgrade(connection, migrations)
+        connection.exec_driver_sql("DELETE FROM files")
+        raise RuntimeError("模拟提交前故障")
+    monkeypatch.setattr(modules.legacy, "_upgrade_locked", fail_after_upgrade)
+    with pytest.raises(RuntimeError, match="模拟提交前故障"):
         modules.legacy.import_legacy_database(source, source, MIGRATIONS)
     with sqlite3.connect(source) as db:
-        assert db.execute("SELECT path FROM files WHERE id=99").fetchone() == ("/concurrent",)
-        assert db.execute("SELECT version_num FROM alembic_version").fetchone() == ("c76c9a1f52dc",)
+        assert db.execute("SELECT COUNT(*) FROM files").fetchone() == (1,)
+        assert db.execute("SELECT version_num FROM alembic_version").fetchone() == (revision,)
+        assert not db.execute("SELECT name FROM sqlite_master WHERE name='p115_legacy_import'").fetchall()
     db.close()
-    monkeypatch.setattr(modules.legacy, "_upgrade_copy", upgrade)
+    monkeypatch.setattr(modules.legacy, "_upgrade_locked", upgrade)
     assert modules.legacy.import_legacy_database(source, source, MIGRATIONS)
+
+
+def test_new_target_created_during_publish_is_preserved(modules, tmp_path, monkeypatch):
+    source, target = tmp_path / "old.db", tmp_path / "plugin.db"
+    old_database(source)
+    link = modules.legacy.os.link
+    def create_before_link(src, dst):
+        if Path(dst) == target:
+            target.write_bytes(b"created by another process")
+        return link(src, dst)
+    monkeypatch.setattr(modules.legacy.os, "link", create_before_link)
+    with pytest.raises(RuntimeError, match="拒绝覆盖"):
+        modules.legacy.import_legacy_database(source, target, MIGRATIONS)
+    assert target.read_bytes() == b"created by another process"
+    assert not list(tmp_path.glob("*.tmp"))
 
 
 @pytest.fixture

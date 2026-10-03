@@ -11,7 +11,8 @@ from uuid import uuid4
 
 from alembic import command
 from alembic.config import Config
-from sqlalchemy.engine import URL
+from sqlalchemy import create_engine
+from sqlalchemy.engine import URL, Connection
 
 TABLES = ("files", "folders", "life_event", "open_files", "open_folders")
 LEGACY_REVISIONS = {"294b0079357e", "2606909750bf", "d8dccb5dc598", "c76c9a1f52dc"}
@@ -31,6 +32,23 @@ def _upgrade_copy(path: Path, migrations: Path) -> None:
     config.set_main_option("script_location", str(migrations))
     config.set_main_option("sqlalchemy.url", URL.create("sqlite", database=str(path)).render_as_string(hide_password=False))
     command.upgrade(config, "head")
+
+
+def _upgrade_locked(connection: Connection, migrations: Path) -> None:
+    """在调用方持有的 SQLite 写事务内运行迁移，不自行提交"""
+    config = Config()
+    config.file_config = ConfigParser(interpolation=None)
+    config.set_main_option("script_location", str(migrations))
+    config.attributes["connection"] = connection
+    command.upgrade(config, "head")
+
+
+def _publish_new(source: Path, target: Path) -> None:
+    """以同目录硬链接原子发布，目标存在或文件系统不支持时拒绝覆盖"""
+    try:
+        os.link(source, target)
+    except FileExistsError as error:
+        raise RuntimeError(f"迁移期间目标库已出现，拒绝覆盖：{target}") from error
 
 
 def import_legacy_database(source: Path, target: Path, migrations: Path) -> bool:
@@ -75,9 +93,7 @@ def import_legacy_database(source: Path, target: Path, migrations: Path) -> bool
             new_counts = _counts(migrated)
             if any(new_counts[table] != count for table, count in counts.items()):
                 raise RuntimeError("旧库升级前后行数发生变化，拒绝继续迁移")
-        if target.exists():
-            raise RuntimeError("迁移期间目标库已出现，拒绝覆盖")
-        os.replace(temporary, target)
+        _publish_new(temporary, target)
         return True
     finally:
         for suffix in ("", "-wal", "-shm", "-journal"):
@@ -92,7 +108,7 @@ def _validate_existing(target: Path) -> None:
 
 
 def _upgrade_existing_legacy(target: Path, migrations: Path) -> bool:
-    """已有目标仍为旧库时，保留快照并校验副本后以 SQLite 事务写回"""
+    """持有 SQLite 写锁直到升级提交，保留快照并先在副本校验"""
     token = uuid4().hex
     backup = target.with_name(f"{target.name}.legacy-{token}.bak")
     snapshot = target.with_name(f"{target.name}.snapshot-{token}.tmp")
@@ -103,27 +119,38 @@ def _upgrade_existing_legacy(target: Path, migrations: Path) -> bool:
         if monotonic() > deadline:
             raise TimeoutError("同路径旧库迁移超过 120 秒，请停止其他数据库访问后重试")
 
+    engine = create_engine(URL.create("sqlite", database=str(target)), connect_args={"timeout": 30})
     try:
-        with closing(sqlite3.connect(target.resolve().as_uri() + "?mode=ro", uri=True)) as source:
-            version = source.execute("PRAGMA data_version").fetchone()
-            with closing(sqlite3.connect(snapshot)) as copied:
-                source.backup(copied, pages=1024, progress=progress, sleep=0.05)
+        with engine.connect() as locked:
+            locked.exec_driver_sql("BEGIN IMMEDIATE")
+            # 等待锁期间另一迁移可能已完成，必须在锁内重新判定版本
+            names = {row[0] for row in locked.exec_driver_sql("SELECT name FROM sqlite_master WHERE type='table'")}
+            revisions = ({row[0] for row in locked.exec_driver_sql("SELECT version_num FROM alembic_version")}
+                         if "alembic_version" in names else set())
+            if revisions and not revisions.issubset(LEGACY_REVISIONS):
+                return False
+            with closing(sqlite3.connect(target.resolve().as_uri() + "?mode=ro", uri=True)) as source:
+                with closing(sqlite3.connect(snapshot)) as copied:
+                    source.backup(copied, pages=1024, progress=progress, sleep=0.05)
+                    counts = _counts(copied)
             _validate_existing(snapshot)
-            os.replace(snapshot, backup)
+            _publish_new(snapshot, backup)
             # 沿用普通导入的完整性、revision 和升级前后行数校验
             import_legacy_database(backup, migrated, migrations)
-            if source.execute("PRAGMA data_version").fetchone() != version:
-                raise RuntimeError("迁移期间旧库发生写入，拒绝覆盖，请停止写入后重试")
-            with closing(sqlite3.connect(migrated.resolve().as_uri() + "?mode=ro", uri=True)) as ready:
-                with closing(sqlite3.connect(target, timeout=30)) as destination:
-                    # backup 在目标事务中发布，兼容原库 WAL 及仍持有读连接的情况
-                    ready.backup(destination, pages=-1, progress=progress, sleep=0.05)
+            _upgrade_locked(locked, migrations)
+            if locked.exec_driver_sql("PRAGMA quick_check").fetchone()[0] != "ok":
+                raise RuntimeError("升级后的数据库完整性检查失败")
+            if any(locked.exec_driver_sql(f'SELECT COUNT(*) FROM "{table}"').scalar() != count
+                   for table, count in counts.items()):
+                raise RuntimeError("旧库升级前后行数发生变化，拒绝继续迁移")
+            locked.commit()
         return True
     except Exception as error:
         if backup.exists():
             raise RuntimeError(f"同路径旧库迁移失败：{error}；旧库快照保留：{backup}") from error
         raise
     finally:
+        engine.dispose()
         # 完整旧库备份不清理，失败和成功均可供恢复
         for path in (snapshot, migrated):
             for suffix in ("", "-wal", "-shm", "-journal"):

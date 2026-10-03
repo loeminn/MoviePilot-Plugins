@@ -46,8 +46,8 @@ def run_migrations_online() -> None:
     """在线模式：优先复用宿主注入的连接，没有注入时按 sqlalchemy.url 自建引擎。"""
     injected_connection = config.attributes.get("connection", None)
     if injected_connection is not None:
-        # PostgreSQL 分支：连接已由宿主按 schema_translate_map 限定，事务边界与
-        # commit 也由宿主（run_migrations）负责，这里只管跑迁移，不 close 连接
+        # 注入连接由宿主或同路径迁移持有，事务与提交由调用方负责
+        # PostgreSQL 的 schema 与 SQLite 的写锁均依赖复用这一连接
         context.configure(connection=injected_connection, target_metadata=target_metadata)
         with context.begin_transaction():
             context.run_migrations()
