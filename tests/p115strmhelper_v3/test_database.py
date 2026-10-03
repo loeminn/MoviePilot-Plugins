@@ -303,6 +303,55 @@ def test_actual_models_load_and_owned_sessions_commit_or_rollback(real_models):
         engine.dispose()
 
 
+@pytest.mark.parametrize("backend", ["sqlite", "postgresql"])
+@pytest.mark.parametrize("model_name", ["File", "Folder"])
+def test_path_mutations_preserve_unrelated_records(real_models, request, backend, model_name):
+    manager, models = real_models
+    from sqlalchemy.orm import sessionmaker
+    engine = (request.getfixturevalue("postgres").engine if backend == "postgresql"
+              else create_engine("sqlite://"))
+    if backend == "sqlite":
+        manager.P115StrmHelperBase.metadata.create_all(engine)
+    manager.bind_handle(SimpleNamespace(session=sessionmaker(bind=engine)))
+    model = getattr(models, model_name)
+
+    def seed(paths):
+        model.truncate(None)
+        model.upsert_batch_by_list(None, [
+            {"id": i, "parent_id": 0, "name": "item", "path": path}
+            for i, path in enumerate(paths, 1)
+        ])
+
+    def paths():
+        return {item.id: item.path for item in model.list(None)}
+
+    try:
+        # 同时覆盖 SQL 通配符、默认转义字符与 PostgreSQL 反斜杠
+        for prefix in ("/TV_A", "/TV%A", "/TV^A", "/TV\\A"):
+            original = [prefix, prefix + "/keep", prefix + "/stale",
+                        "/TVXA/unrelated", prefix + "-old/other"]
+            seed(original)
+            model.update_path_prefix(None, prefix, "/renamed")
+            assert paths() == {1: "/renamed", 2: "/renamed/keep", 3: "/renamed/stale",
+                               4: original[3], 5: original[4]}
+            seed(original)
+            assert model.remove_by_path_prefix_not_in_ids(None, prefix + "/", {2}) == 1
+            assert paths() == {i: path for i, path in enumerate(original, 1) if i != 3}
+            for suffix in ("", "/"):
+                seed(original)
+                model.remove_by_path_batch(None, prefix + suffix)
+                assert paths() == {4: original[3], 5: original[4]}
+        seed(["/", "/Movies/a", "/Movies-old/b"])
+        with pytest.raises(ValueError, match="不能为空"):
+            model.remove_by_path_batch(None, "")
+        assert len(paths()) == 3
+        model.remove_by_path_batch(None, "/")
+        assert paths() == {}
+    finally:
+        if backend == "sqlite":
+            engine.dispose()
+
+
 @pytest.mark.parametrize("model_name", ["File", "Folder", "LifeEvent", "OpenFile", "OpenFolder"])
 def test_actual_postgres_models_write_large_ids(real_models, postgres, model_name):
     manager, models = real_models

@@ -129,7 +129,14 @@ class Folder(P115StrmHelperBase):
 
         :return bool: 始终返回 True
         """
-        db.execute(delete(Folder).where(Folder.path.startswith(path)))
+        if not path:
+            raise ValueError("删除路径不能为空")
+        path = path.rstrip("/") or "/"
+        descendants = path.rstrip("/") + "/"
+        db.execute(delete(Folder).where(or_(
+            Folder.path == path,
+            Folder.path.startswith(descendants, autoescape=True),
+        )))
         return True
 
     @staticmethod
@@ -154,7 +161,7 @@ class Folder(P115StrmHelperBase):
             .where(
                 or_(
                     Folder.path == old_prefix,
-                    Folder.path.startswith(f"{old_prefix}/"),
+                    Folder.path.startswith(f"{old_prefix}/", autoescape=True),
                 )
             )
             .values(
@@ -178,7 +185,7 @@ class Folder(P115StrmHelperBase):
         :return int: 实际删除的总行数
         """
         all_ids = set(
-            db.execute(select(Folder.id).where(Folder.path.startswith(path_prefix)))
+            db.execute(select(Folder.id).where(Folder.path.startswith(path_prefix, autoescape=True)))
             .scalars()
             .all()
         )

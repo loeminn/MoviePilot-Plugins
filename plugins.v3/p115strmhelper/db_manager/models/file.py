@@ -120,7 +120,14 @@ class File(P115StrmHelperBase):
         :param db (Session): 数据库会话
         :param path (str): 路径前缀
         """
-        db.execute(delete(File).where(File.path.startswith(path)))
+        if not path:
+            raise ValueError("删除路径不能为空")
+        path = path.rstrip("/") or "/"
+        descendants = path.rstrip("/") + "/"
+        db.execute(delete(File).where(or_(
+            File.path == path,
+            File.path.startswith(descendants, autoescape=True),
+        )))
         return True
 
     @staticmethod
@@ -169,7 +176,7 @@ class File(P115StrmHelperBase):
             .where(
                 or_(
                     File.path == old_prefix,
-                    File.path.startswith(f"{old_prefix}/"),
+                    File.path.startswith(f"{old_prefix}/", autoescape=True),
                 )
             )
             .values(
@@ -191,7 +198,7 @@ class File(P115StrmHelperBase):
         :param ids (Set): 需要保留的 ID 集合
         """
         all_ids = set(
-            db.execute(select(File.id).where(File.path.startswith(path_prefix)))
+            db.execute(select(File.id).where(File.path.startswith(path_prefix, autoescape=True)))
             .scalars()
             .all()
         )
