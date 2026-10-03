@@ -2,7 +2,7 @@
 
 本仓库仅维护 **115 网盘 STRM 助手的 MoviePilot V3 适配版**，基于 [DDSRem-Dev/MoviePilot-Plugins](https://github.com/DDSRem-Dev/MoviePilot-Plugins) 原版开发，保留原作者署名及许可证。
 
-当前版本 **3.1.6**，目标宿主 **MoviePilot >=3.1.0**。[下载发行版](https://github.com/loeminn/MoviePilot-Plugins/releases/tag/P115StrmHelper_v3.1.6)。尚未完成真实 MP V3 / 115 账号端到端联调。
+当前版本 **3.1.0**，目标宿主 **MoviePilot >=3.1.0**。[下载发行版](https://github.com/loeminn/MoviePilot-Plugins/releases/tag/P115StrmHelper_v3.1.0)。尚未完成真实 MP V3 / 115 账号端到端联调。
 
 - 使用 MP 原生整理，禁用旧版批量整理接管；保留“监控 MP 整理生成 STRM”
 - 保留 302、全量/增量同步、分享等原有功能；302 核心逻辑保持原版
@@ -22,19 +22,7 @@
 
 [V3 适配说明](plugins.v3/p115strmhelper/README.md) · [上游使用文档](docs/p115strmhelper/README.md)
 
-3.1.6 修复 SQLite 迁移发布的并发窗口，新目标不覆盖，同路径升级全程持有写锁。
-
-3.1.5 补全旧 SQLite 与目标库同路径时的备份和校验，避免直接升级原库。
-
-3.1.4 修复上层批量写入改变记录顺序的问题，混合整数与字符串 ID 时保留最后一条记录。
-
-3.1.3 修复目录重命名部分提交、SQLite 路径大小写误匹配及 Open 文件误写目录表的问题。
-
-3.1.2 修复路径通配符及目录边界匹配，避免更新或清理其他目录的缓存记录。
-
-3.1.1 修复 PostgreSQL 批量替换时整数与数字字符串 ID 混用导致的唯一键冲突，写入前校验主键且不修改调用方数据。
-
-3.1.0 接入宿主管理的插件数据库，支持 SQLite 和 PostgreSQL；保留旧 SQLite 库并进行一次性校验导入。升级前请阅读[数据库迁移与恢复说明](docs/p115strmhelper/DATABASE_V3.md)。
+3.1.0 汇总宿主管理数据库及全部后续修复，可从 3.0.6 直接升级。支持 SQLite 和 PostgreSQL，包含旧库备份与校验导入、迁移并发保护、批量 ID/路径替换、目录重命名事务及 Open 文件写入修复。升级前请阅读[数据库迁移与恢复说明](docs/p115strmhelper/DATABASE_V3.md)。
 
 3.0.6 修复分享清理记录的媒体标识映射和 HDHive 浏览器通知权限脚本；新增 6 项媒体身份测试及 3 项实际浏览器脚本测试。
 
