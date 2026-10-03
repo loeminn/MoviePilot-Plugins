@@ -15,6 +15,7 @@ from base64 import b64encode, b64decode
 from pathlib import Path
 from typing import List, Dict, MutableMapping, Optional, Union, Set, Any
 from time import time
+from urllib.parse import parse_qsl, unquote, urlsplit
 
 from cachetools import TTLCache as MemoryTTLCache
 from diskcache import Cache as DiskCache
@@ -22,6 +23,7 @@ from orjson import dumps
 
 from app.sdk.cache import LRUCache, TTLCache, AsyncCache
 from app.sdk.config import settings
+from app.sdk.logging import logger
 from app.adapters.cache.redis import RedisHelper
 
 
@@ -237,6 +239,86 @@ class R302Cache:
             if len(key_str) > pick_code_len:
                 count += 1
         return count
+
+    @staticmethod
+    def _expires_at(url: str) -> Optional[int]:
+        try:
+            deadline = next(value for key, value in parse_qsl(urlsplit(url).query) if key == "t")
+            # 与 302 获取链路一致，缓存提前 5 分钟失效
+            expires_at = int(deadline) - 60 * 5
+            return expires_at if expires_at > 0 else None
+        except (ValueError, StopIteration):
+            return None
+
+    async def list_entries(
+        self, keyword: str = "", page: int = 1, page_size: int = 20
+    ) -> Dict[str, Any]:
+        """
+        分页查询有效的直链缓存，不延长缓存有效期
+
+        :param keyword (str): 文件名、缓存标识、UA 或直链关键词
+        :param page (int): 页码
+        :param page_size (int): 每页数量
+
+        :return Dict: 缓存条目、总数及实际页码
+        """
+        entries = []
+        seen = set()
+        keyword = keyword.strip().casefold()
+        async for key, url in self._cache.items(region=self.region):
+            if not isinstance(key, str) or not isinstance(url, str) or not url:
+                continue
+            if self._KEY_SEPARATOR not in key or key in seen:
+                continue
+            seen.add(key)
+            url = await self._cache.get(key=key, region=self.region)
+            if not isinstance(url, str) or not url:
+                continue
+            pick_code, ua = key.split(self._KEY_SEPARATOR, 1)
+            try:
+                file_name = unquote(urlsplit(url).path.rpartition("/")[-1])
+            except ValueError:
+                file_name = ""
+            entry = {
+                "key": key,
+                "pick_code": pick_code,
+                "user_agent": ua,
+                "file_name": file_name or pick_code,
+                "url": url,
+            }
+            if keyword and not any(keyword in value.casefold() for value in entry.values()):
+                continue
+            entry["expires_at"] = self._expires_at(url)
+            entries.append(entry)
+        entries.sort(key=lambda entry: entry["key"])
+        total = len(entries)
+        page_size = max(1, min(page_size, 100))
+        page = max(1, min(page, (total + page_size - 1) // page_size or 1))
+        start = (page - 1) * page_size
+        return {"items": entries[start:start + page_size], "total": total, "page": page}
+
+    async def delete_entries(self, keys: List[str]) -> Dict[str, List[str]]:
+        """
+        精确删除指定直链缓存，已失效的条目视为处理成功
+
+        :param keys (List): 完整缓存键
+
+        :return Dict: 已处理键及失败键
+        """
+        processed_keys = []
+        failed_keys = []
+        for key in dict.fromkeys(keys):
+            try:
+                await self._cache.delete(key=key, region=self.region)
+                # 宿主 Redis 后端可能吞掉删除异常，仍存在的键不能计为已处理
+                if await self._cache.get(key=key, region=self.region) is not None:
+                    failed_keys.append(key)
+                else:
+                    processed_keys.append(key)
+            except Exception:
+                logger.error("【302缓存】删除指定缓存失败", exc_info=True)
+                failed_keys.append(key)
+        return {"processed_keys": processed_keys, "failed_keys": failed_keys}
 
     async def clear(self):
         """

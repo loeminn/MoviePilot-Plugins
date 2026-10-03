@@ -2,7 +2,9 @@
 
 本仓库仅维护 **115 网盘 STRM 助手的 MoviePilot V3 适配版**，基于 [DDSRem-Dev/MoviePilot-Plugins](https://github.com/DDSRem-Dev/MoviePilot-Plugins) 原版开发，保留原作者署名及许可证。
 
-当前版本 **3.1.1**，目标宿主 **MoviePilot >=3.1.0**。[下载发行版](https://github.com/loeminn/MoviePilot-Plugins/releases/tag/P115StrmHelper_v3.1.1)。尚未完成真实 MP V3 / 115 账号端到端联调。
+当前版本 **3.2.0**，目标宿主 **MoviePilot >=3.1.0**。[下载发行版](https://github.com/loeminn/MoviePilot-Plugins/releases/tag/P115StrmHelper_v3.2.0)。尚未完成真实 MP V3 / 115 账号端到端联调。
+
+3.2.0 新增直链缓存列表，入口为「系统配置 → 缓存配置 → 302 跳转缓存 → 查看缓存」，支持搜索、分页、到期时间查看、复制直链以及单条和批量指定删除。
 
 - 使用 MP 原生整理，禁用旧版批量整理接管；保留“监控 MP 整理生成 STRM”
 - 保留 302、全量/增量同步、分享等原有功能；302 核心逻辑保持原版

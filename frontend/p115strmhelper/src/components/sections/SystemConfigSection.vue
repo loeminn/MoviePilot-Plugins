@@ -71,6 +71,8 @@
                         <p class="text-body-2 text-grey-darken-1 mb-3 flex-grow-1">
                           清理302跳转链接缓存，强制重新获取最新下载跳转地址。
                         </p>
+                        <v-btn v-if="isV3" color="info" variant="tonal" class="mb-2" :disabled="clearR302CacheLoading"
+                          @click="showR302Cache = true" prepend-icon="mdi-format-list-bulleted" block>查看缓存</v-btn>
                         <v-btn color="info" variant="outlined" :loading="clearR302CacheLoading" @click="clearR302Cache"
                           prepend-icon="mdi-link-off" block>
                           清理302跳转缓存
@@ -627,12 +629,16 @@
         </v-card-text>
       </v-window-item>
     </v-window>
+    <R302CacheDialog v-if="isV3" v-model="showR302Cache" />
   </v-card-text>
 </template>
 
 <script setup>
 const isV3 = __MP_PLUGIN_V3__;
 import { ref, inject } from 'vue';
+import R302CacheDialog from '../dialogs/R302CacheDialog.vue';
+
+const showR302Cache = ref(false);
 
 const systemSubTab = ref('tab-cache-config');
 

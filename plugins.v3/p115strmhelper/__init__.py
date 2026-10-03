@@ -556,6 +556,20 @@ class P115StrmHelper(_PluginBase):
                 "summary": "清理增量同步跳过路径缓存",
             },
             {
+                "path": "/list_302_cache",
+                "endpoint": self.api.list_302_cache_api,
+                "methods": ["GET"],
+                "auth": "bear",
+                "summary": "查询直链缓存",
+            },
+            {
+                "path": "/delete_302_cache",
+                "endpoint": self.api.delete_302_cache_api,
+                "methods": ["POST"],
+                "auth": "bear",
+                "summary": "删除指定直链缓存",
+            },
+            {
                 "path": "/clear_302_cache",
                 "endpoint": self.api.clear_302_cache_api,
                 "methods": ["POST"],

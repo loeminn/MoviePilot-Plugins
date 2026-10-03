@@ -66,6 +66,7 @@ from .helper.strm.share import (
     share_strm_pending_queue,
 )
 from .schemas.api import ApiResponse
+from .schemas.r302_cache import DeleteR302CachePayload
 from .helper.hdhive.open import (
     DEFAULT_OAUTH_SCOPES,
     HDHiveSession,
@@ -1340,6 +1341,40 @@ class Api:
         directory_cache = DirectoryCache(configer.PLUGIN_TEMP_PATH / "increment_skip")
         directory_cache.clear_group("increment_skip")
         return ApiResponse(msg="增量同步跳过路径缓存已清理")
+
+    @staticmethod
+    async def list_302_cache_api(
+        keyword: str = Query(default="", max_length=2048, description="搜索关键词"),
+        page: int = Query(default=1, ge=1, description="页码"),
+        page_size: int = Query(default=20, ge=1, le=100, description="每页数量"),
+    ) -> ApiResponse:
+        """
+        获取有效直链缓存列表
+
+        :param keyword (str): 搜索关键词
+        :param page (int): 页码
+        :param page_size (int): 每页数量
+
+        :return ApiResponse: 分页缓存数据
+        """
+        return ApiResponse(data=await r302cacher.list_entries(keyword, page, page_size))
+
+    @staticmethod
+    async def delete_302_cache_api(payload: DeleteR302CachePayload) -> ApiResponse:
+        """
+        删除指定直链缓存
+
+        :param payload (DeleteR302CachePayload): 待删除的缓存键
+
+        :return ApiResponse: 各缓存键的处理结果
+        """
+        result = await r302cacher.delete_entries(payload.keys)
+        failed = len(result["failed_keys"])
+        processed = len(result["processed_keys"])
+        return ApiResponse(
+            msg=f"已处理 {processed} 条缓存，失败 {failed} 条" if failed else f"已处理 {processed} 条缓存",
+            data=result,
+        )
 
     @staticmethod
     async def clear_302_cache_api() -> ApiResponse:
