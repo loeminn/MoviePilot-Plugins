@@ -53,7 +53,7 @@ def test_manifest_and_source_version_match():
     entry = json.loads((ROOT / "package.v3.json").read_text("utf8"))["P115StrmHelper"]
     namespace = {}
     exec((PLUGIN / "version.py").read_text("utf8"), namespace)
-    assert entry["version"] == namespace["VERSION"] == "3.1.2"
+    assert entry["version"] == namespace["VERSION"] == "3.1.3"
     assert entry["system_version"] == ">=3.1.0"
     assert entry["release"] is True
 
