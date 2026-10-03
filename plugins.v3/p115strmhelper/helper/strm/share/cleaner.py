@@ -260,6 +260,8 @@ class ShareStrmMissingMediaStore:
         :return Dict: 含 ``uid``、``reason``、``detected_at`` 及 ``id``/``title`` 等 API 字段的字典
         """
         uid = str(uuid4())
+        media_source = getattr(th, "media_source", None)
+        media_id = getattr(th, "media_id", None)
         base: Dict[str, Any] = {
             "uid": uid,
             "strm_path": strm_path,
@@ -271,10 +273,10 @@ class ShareStrmMissingMediaStore:
             "type": getattr(th, "type", None),
             "title": getattr(th, "title", None),
             "year": getattr(th, "year", None),
-            "tmdbid": getattr(th, "media_id", None) if getattr(th, "media_source", None) == MediaSource.TMDB else None,
-            "tvdbid": getattr(th, "tvdbid", None),
-            "imdbid": getattr(th, "imdbid", None),
-            "doubanid": getattr(th, "media_id", None) if getattr(th, "media_source", None) == MediaSource.DOUBAN else None,
+            "tmdbid": media_id if media_source == MediaSource.TMDB.value else None,
+            "tvdbid": media_id if media_source == MediaSource.TVDB.value else None,
+            "imdbid": media_id if media_source == MediaSource.IMDb.value else None,
+            "doubanid": media_id if media_source == MediaSource.Douban.value else None,
             "seasons": getattr(th, "seasons", None),
             "episodes": getattr(th, "episodes", None),
             "image": getattr(th, "image", None),

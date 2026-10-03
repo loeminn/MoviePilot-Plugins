@@ -476,7 +476,7 @@ class HDHivePlaywrightClient:
             if (origQuery) {
                 window.navigator.permissions.query = (parameters) => (
                     parameters.name === 'notifications'
-                        ? Promise.resolve({ state: Message.permission })
+                        ? Promise.resolve({ state: Notification.permission })
                         : origQuery.call(window.navigator.permissions, parameters)
                 );
             }
