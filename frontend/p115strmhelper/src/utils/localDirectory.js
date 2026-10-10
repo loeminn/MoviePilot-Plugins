@@ -8,7 +8,7 @@ export async function browseLocalDirectory(api, path) {
   }
   const items = Array.isArray(response) ? response : response?.data;
   if (!Array.isArray(items)) {
-    throw new Error('浏览目录失败：无效响应');
+    throw new Error(response?.message || '浏览目录失败：无效响应');
   }
   return items
     .filter(item => item.type === 'dir')

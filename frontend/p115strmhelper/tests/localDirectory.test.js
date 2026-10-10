@@ -54,3 +54,10 @@ test('config selector consumes the V3 directory result and resets loading', asyn
   assert.equal(selector.dirDialog.error, null);
   assert.equal(selector.dirDialog.loading, false);
 });
+
+
+test('legacy error envelopes retain the host message without a success field', async () => {
+  await assert.rejects(browseLocalDirectory({ post: async () => ({
+    message: '目录不存在', data: null,
+  }) }, '/'), /目录不存在/);
+});

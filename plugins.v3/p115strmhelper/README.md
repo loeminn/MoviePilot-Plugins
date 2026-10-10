@@ -1,6 +1,6 @@
 # 115 网盘 STRM 助手：MoviePilot V3 适配版
 
-版本：3.1.3；目标宿主：MoviePilot >=3.1.0。发行包见本仓库 Releases；尚未完成真实 MP/115 账号端到端联调。
+版本：3.1.4；目标宿主：MoviePilot >=3.1.0。发行包见本仓库 Releases；尚未完成真实 MP/115 账号端到端联调。
 
 在「系统配置 → 缓存配置 → 302 跳转缓存 → 查看缓存」中，可搜索、分页查看直链缓存，查看和复制完整直链，并单条或批量删除指定缓存。缓存到期时间按浏览器本地时区显示，比直链失效时间提前 5 分钟；删除缓存不会删除网盘文件，再次播放时会重新获取直链。
 
@@ -16,8 +16,35 @@
 - 错误上报、分享链接上报、离线链接上报默认关闭；已保存的显式开启值保留。要关闭已有配置中的上报，请在插件设置中关闭这三项。
 - 改用 V3 SDK、消息类型、宿主数据库操作接口和统一媒体标识；一次性任务及周期服务重建使用公开调度接口。
 - 302 算法、URL 构造、缓存和网盘请求逻辑保持上游实现，仅迁移依赖的宿主导入路径。
-- Rust 扩展不可用时，目录树和分享扫描使用 Python 后端，全量同步使用上游 Python 分支；可能比 Rust 后端慢。随源码保留的 wheel 均来自原版，未重新编译或引入其他分支二进制。
+- Rust 扩展不可用时，目录树和分享扫描使用 Python 后端，全量同步使用上游 Python 分支；可能比 Rust 后端慢。源码仓库内的 Windows wheel 已重建，其他平台仍保留原版产物；3.1.4 起发布包在打包前使用同次 CI 构建、测试通过的完整跨平台 wheel 替换仓库内产物。
 - 本仓库仅保留 V3 实现。前端通过 `MP_PLUGIN_V3=1` 或 `PLUGIN_DIR=plugins.v3/p115strmhelper` 选择 V3 构建。
+
+## 3.1.4 同步上游 2.8.75
+
+以 `2d6f93a5` 为共同基线，移植原作者 `620f4fc3` 发布的 STRM 助手修复；本次核对的上游主分支为 `349f3c93`。仅同步本插件相关改动，未恢复 V2 或其他插件。
+
+- `p115client` 升至 `0.0.9.7.2`，同步内置 wheel；目录遍历、媒体信息下载、分享、API 生成与 WebDAV 改用新接口并显式保留路径和排序参数
+- `python-concurrenttools` 使用 `>=0.1.9,<0.1.10`，移除旧客户端所需的全局接口别名补丁；Sentry 升至 `2.71.x`，上报默认值和已有配置不变
+- 增量同步使用每个任务独立的目录树文件及本地路径到网盘源文件的映射，跳过缺失、冲突及类型不匹配的源文件，避免行号错配导致串集
+- 整理结果缺少目标文件或目录时跳过生成；旧媒体删除后，仅在剩余内容全部是图片或 NFO 时清理通用刮削文件，保留仍有其他文件、目录或符号链接的共享内容
+- 保留 V3 SDK、宿主管理数据库、原生整理、离线进度开关、302 缓存管理、配置保存修复及 Rust 不可用时的 Python 回退
+- 保留统一目录响应解析，补齐旧格式错误响应的宿主提示；三个 Rust 扩展的 PyO3 锁定为 `0.29.3`，Maturin 固定为 `1.15.0`，Windows 的 Python 3.12/3.14 wheel 已重建并验证
+
+升级后重启 MoviePilot 并刷新浏览器。Python 3.14 下真实依赖导入、迭代参数及并发验证共 8 项；业务测试包含 10 项增量映射与清理、7 项路径清理、18 项整理分类、18 项 302 缓存与并发。V3 契约及 SQLite 测试通过 72 项，14 项 PostgreSQL 测试需在配置数据库的 CI 中执行；前端 19 项测试、V3 生产构建及 CSS 检查通过。未完成真实 MP/115 账号端到端联调。
+
+## Rust 构建与验证
+
+`full_strm_sync`、`share_strm_scan` 和 `txt_tree_storage` 的 PyO3 从 `0.29.2` 升至 `0.29.3`，保持上游扩展版本号及 Python 接口。三个项目均启用 Maturin `locked = true`，构建必须使用已提交的 `Cargo.lock`。本次没有修改 Rust 业务算法。
+
+`.github/workflows/build-rust-wheels.yml` 使用 Rust `1.95.0`、Maturin `1.15.0` 和 cibuildwheel `4.3.0`，在修改 Rust 源码、配置或测试的 PR/push 以及手动触发时构建。覆盖 CPython 3.12/3.14、Windows AMD64、Linux manylinux2014/musllinux 的 x86_64/aarch64、macOS x86_64/arm64/universal2，共 48 个 wheel。每个 wheel 安装后运行对应扩展测试；universal2 在 Intel runner 上测试 x86_64 切片，arm64 由原生 arm64 wheel 测试覆盖。
+
+独立构建流程上传 `p115strmhelper-rust-wheels-<commit>` 产物、`SHA256SUMS` 和 `rust-build-info.json`，不自动提交。发布 P115StrmHelper 时，发布流程调用同一提交的 Rust 构建流程，等待完整矩阵构建和测试成功，再下载同次运行的产物。打包前校验提交、源码哈希、wheel 哈希、扩展版本及 48 个平台/ABI 组合，全部通过后替换发布目录内三个扩展的旧 wheel，保留其他依赖。任一构建或校验失败都会阻止发布。
+
+源码 SHA256 统一将 CRLF 转为 LF 后计算，清单通过 `source_hash_normalization: CRLF-to-LF` 标明规则；wheel SHA256 始终按原始二进制字节计算。可用 `.github/scripts/rust_wheel_bundle.py` 的 `record` / `install` 命令生成清单或校验并替换完整产物，参数为 `--plugin <插件目录> --wheels <产物目录> --commit <提交SHA>`。发布包中的清单记录本次构建提交与全部平台产物，源码仓库中的清单仅记录本地已重建的 Windows wheel。
+
+本地已在 Windows x64 的 CPython 3.12 和 3.14 下各通过 74 项测试（63 项实际扩展测试和 11 项 Python 回退测试）。6 个 Windows wheel 已更新；Linux/macOS 的跨平台构建尚未执行，保留原版二进制，不将其标记为已升级。Windows 重建元数据与 SHA256 见 `wheels/rust-build-info.json`。
+
+本地可在各扩展目录运行 `maturin build --release --locked --interpreter <python路径> --out <产物目录>`，用目标解释器执行 `python -m pip install --force-reinstall <wheel文件>`，然后运行 `python -m pytest tests -q`。扩展版本号沿用上游，同版本重建需要强制重新安装才会替换已安装的二进制；插件仍在扩展不可用时使用 Python 回退。所有测试均无需 115 账号。
 
 ## 3.1.1 离线下载进度检查开关
 
@@ -58,6 +85,8 @@
 本地目录浏览按 MP V3 的 `success/message/data` 响应读取 `data` 数组，配置页和分享配置页共用同一解析函数；兼容旧版裸数组，保留宿主错误信息。新增 6 项前端回归测试并纳入 CI，覆盖目录排序、文件过滤、空目录、异常响应、网络错误及配置页选择器。更新后刷新浏览器页面以加载新的前端资源。
 
 ## 3.0.2 依赖兼容修复
+
+以下为旧版本修复记录；3.1.4 升级客户端后已移除此兼容层，当前依赖范围见上文。
 
 `p115client==0.0.9.6.5.1` 导入时使用 `threadpool_map` / `taskgroup_map`，而 `python-concurrenttools==0.1.9` 将其改为 `thread_conmap` / `async_conmap`。插件在其他导入之前执行兼容初始化，仅为 0.1.9 在共享 `concurrenttools` 模块中添加缺失的旧名称，不覆盖已有函数。0.1.8 沿用原有接口；版本约束上限为 `<0.1.10`，未来版本需重新验证。
 

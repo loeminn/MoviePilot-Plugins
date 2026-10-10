@@ -2,7 +2,9 @@
 
 本仓库仅维护 **115 网盘 STRM 助手的 MoviePilot V3 适配版**，基于 [DDSRem-Dev/MoviePilot-Plugins](https://github.com/DDSRem-Dev/MoviePilot-Plugins) 原版开发，保留原作者署名及许可证。
 
-当前版本 **3.1.3**，目标宿主 **MoviePilot >=3.1.0**。[下载发行版](https://github.com/loeminn/MoviePilot-Plugins/releases/tag/P115StrmHelper_v3.1.3)。尚未完成真实 MP V3 / 115 账号端到端联调。
+当前源码版本 **3.1.4**，目标宿主 **MoviePilot >=3.1.0**。[下载发行版](https://github.com/loeminn/MoviePilot-Plugins/releases)。尚未完成真实 MP V3 / 115 账号端到端联调。
+
+3.1.4 同步上游 2.8.75 的客户端接口适配、增量同步串集修复、整理结果检查和旧目录刮削清理。同时升级 Rust 构建至 PyO3 0.29.3，新增跨平台 wheel 构建流程，已重建并验证 Windows Python 3.12/3.14 产物。升级后请重启 MoviePilot 并刷新浏览器；保留现有 V3 数据库及配置。
 
 3.1.3 新增直链缓存列表，入口为「系统配置 → 缓存配置 → 302 跳转缓存 → 查看缓存」，支持搜索、分页、到期时间查看、复制直链以及单条和批量指定删除。
 
@@ -46,11 +48,11 @@ python -m pytest tests/p115strmhelper_v3 -q
 python -m unittest discover -s plugins.v3/p115strmhelper/tests -p test_r302_concurrency.py -q
 ```
 
-真实依赖测试另运行 `python -m pytest tests/dependencies -q`；先安装 `p115client==0.0.9.6.5.1`，并分别使用 `python-concurrenttools==0.1.8` 和 `==0.1.9`。CI 在 Python 3.14 上执行两组测试，每组 5 项，不使用 p115client 替身。
+真实依赖测试另运行 `python -m pytest tests/dependencies -q`；先安装 `p115client==0.0.9.7.2` 和 `python-concurrenttools==0.1.9`。CI 在 Python 3.14 上执行 8 项导入、迭代参数和并发测试，不使用 p115client 替身。
 
 前端在 `frontend/p115strmhelper` 中运行 `npm ci`，设置 `MP_PLUGIN_V3=1` 后运行 `npm run build`。发布工作流会自动构建前端并打包。
 
-适配测试共 86 项，其中 14 项使用真实 PostgreSQL；本地精简环境运行 72 项，其余 14 项在配置了 PostgreSQL 的 CI 中运行。另有 6 项 302 并发测试。运行适配测试前，将 `MOVIEPILOT_SOURCE` 环境变量设为 MoviePilot 源码目录，可执行其中两项真实宿主调度方法测试及一项动态路由注册测试；未设置时宿主相关测试会跳过。CI 固定检出已核对的宿主提交并执行全部测试。测试使用数据库和网络边界替身，不等于真实宿主端到端验证。
+适配测试共 86 项，其中 14 项使用真实 PostgreSQL；本地精简环境运行 72 项，其余 14 项在配置了 PostgreSQL 的 CI 中运行。另有 18 项 302 缓存与并发测试、18 项整理分类测试、10 项增量映射与清理测试、7 项关联文件清理测试和 19 项前端测试。运行适配测试前，将 `MOVIEPILOT_SOURCE` 环境变量设为 MoviePilot 源码目录，可执行其中两项真实宿主调度方法测试及一项动态路由注册测试；未设置时宿主相关测试会跳过。CI 固定检出已核对的宿主提交并执行全部测试。测试使用数据库和网络边界替身，不等于真实宿主端到端验证。
 
 配置持久化使用插件基类接口，历史查询使用公开 Oper；保存后重新初始化、模糊匹配及分身拒绝行为已有回归测试。
 
@@ -62,7 +64,7 @@ python -m unittest discover -s plugins.v3/p115strmhelper/tests -p test_transfer_
 
 其他原版测试包含需要宿主和完整依赖的模块。运行完整 `plugins.v3/p115strmhelper/tests` 时，应在本仓库根目录启动，将 `PYTHONPATH` 按顺序设为宿主根目录、插件目录，使用 `unittest discover`；不要在插件目录直接启动，以免插件 `version.py` 遮蔽宿主同名模块。分类测试恢复 `sys.modules`，不会将其假宿主模块留给其他用例。本地精简测试环境不代表完整宿主环境，不能据此声称原版全部测试通过。
 
-上报开关默认关闭，升级保留已存储的显式值；实际部署若继承了 `true`，需要在设置中关闭。`python-concurrenttools` 仍只支持 `>=0.1.8,<0.1.10`，不对未验证版本扩大兼容范围。Sentry 2.x 的旧 Hub 接口暂仍可用，后续迁移需验证插件与宿主的上报隔离；`PluginManager` 经 SDK 导出，注册刷新函数仍是已核对的宿主内部接口。
+上报开关默认关闭，升级保留已存储的显式值；实际部署若继承了 `true`，需要在设置中关闭。`python-concurrenttools` 仍只支持 `>=0.1.9,<0.1.10`，不对未验证版本扩大兼容范围。Sentry 2.x 的旧 Hub 接口暂仍可用，后续迁移需验证插件与宿主的上报隔离；`PluginManager` 经 SDK 导出，注册刷新函数仍是已核对的宿主内部接口。
 
 CSS 检查器来自 [官方仓库](https://github.com/jxxghp/MoviePilot-Plugins/blob/main/.github/scripts/check_federation_css.py)，保留原始检查规则。发布版本 CI 和发布工作流均运行完整 `check_federation_css.py`；`check_candidate_css.py` 仅供未来未发布候选版本使用。本次已移除 Vuetify 全局基础样式产物。
 

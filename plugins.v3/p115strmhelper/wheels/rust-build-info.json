@@ -1,0 +1,50 @@
+{
+  "schema_version": 2,
+  "platform": "win_amd64",
+  "python_abis": [
+    "cp312",
+    "cp314"
+  ],
+  "pyo3": "0.29.3",
+  "rustc": "rustc 1.95.0 (59807616e 2026-04-14)",
+  "maturin": "1.15.0",
+  "cibuildwheel": "4.3.0",
+  "base_commit": "913155ce4aab8dce1186153ccd186741bb4c08d4",
+  "source_files_sha256": {
+    "rust_utils/full_strm_sync/Cargo.lock": "bfdd405d29f42b348f2bd38dd5e38007e628f6bf756eef6f3cdb41dfdd69d739",
+    "rust_utils/full_strm_sync/Cargo.toml": "9514c13c4245c4d4fe3b8ba23b2e83d4765cf6877ac11e1192cf010d49151580",
+    "rust_utils/full_strm_sync/pyproject.toml": "acce48d5aa1f5e86b3bc3f7688446041d05d481dd37819b562222f616c55e89a",
+    "rust_utils/full_strm_sync/src/lib.rs": "f6460d350152e5d2106588c574e6384defd16b8687133cee4ab9f8e1b6d78a7c",
+    "rust_utils/full_strm_sync/src/processor.rs": "cec62d1cffdf68234a168a3dbeab489c20dc4dc5f1fc880d37b07dd3d26661cc",
+    "rust_utils/full_strm_sync/src/types.rs": "fab9858ad156c3be0fda0e655fb986d9090dca1782e5a2584c2a73ca34d43350",
+    "rust_utils/full_strm_sync/tests/test_processor.py": "f60d09bfca0eb5e5df64ae4c23781ee7c9564d67671aa5bfb5480dd99201c92e",
+    "rust_utils/share_strm_scan/Cargo.lock": "088d1d6322edacba06c61fb67a004850bf68a539fc0e1dfb02ffd78440fb8df8",
+    "rust_utils/share_strm_scan/Cargo.toml": "bba314a0b160f1154e45adf52305eedae77bdabd81765185a3e24a4e3bcf2f6b",
+    "rust_utils/share_strm_scan/pyproject.toml": "9a9392f54cb12e31eef97d0f03b32d65ede9661bac9fa63c36f5392b3e5f7ef5",
+    "rust_utils/share_strm_scan/python/share_strm_scan/__init__.py": "4730888c1149b83d905d05d18470c08c546ff18ee5535de4d353ddd60ca952d3",
+    "rust_utils/share_strm_scan/src/lib.rs": "0a68a16152ae6842ad5f90a95232e50dc7fce05dff9f7ffbf2979e4f6333cd69",
+    "rust_utils/share_strm_scan/src/query.rs": "cb821a54d3ffda4c721b186a54992fd3fed75219c2903c76e0ae0428391ba7ea",
+    "rust_utils/share_strm_scan/src/scan.rs": "8c76bec3146704a7c586a88ab3bbf459b9fa4df9e1116d4f7c977d6b14771f1e",
+    "rust_utils/share_strm_scan/tests/__init__.py": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "rust_utils/share_strm_scan/tests/test_scan.py": "70ec482fea114a3e76efe8bef80523a0afe05f6389d39bff1d9feff068c28859",
+    "rust_utils/txt_tree_storage/Cargo.lock": "57c5e27ce3681dc501bbcec8f722015c3765570cac29f74b9d327d83bf44f5f4",
+    "rust_utils/txt_tree_storage/Cargo.toml": "080b0f6733f8752ac0807d54323e5ac2a13cdc595d40b5a27e07bbef2dec6518",
+    "rust_utils/txt_tree_storage/pyproject.toml": "e6149e9d0aeda341b22f3c8e78e1203a24ae2d4aadf230b93f9e0567226354ac",
+    "rust_utils/txt_tree_storage/src/lib.rs": "72a4f8b490ba6b833159a6d5c71e914b82790239f420efd5c67fc8e693dd4de2",
+    "rust_utils/txt_tree_storage/tests/test_parity.py": "2b41f687d3550f99213c9c92384047ebcb727f17548db4f853b2ba525c97e379"
+  },
+  "wheels_sha256": {
+    "full_strm_sync-0.1.6-cp312-cp312-win_amd64.whl": "c44b8fd39bfd42bd04914df2a251a53b4c7913906386f0ed9e55c4ea99a156cb",
+    "full_strm_sync-0.1.6-cp314-cp314-win_amd64.whl": "0e8f0f81b44bdd7a563fac0203842637ac7ab9d966e5161f045278492e555d5c",
+    "share_strm_scan-0.2.2-cp312-cp312-win_amd64.whl": "ae5848c704f20f4dd17f50bd8e5423d4c5bb433a20b9237279744ea3192bf7a5",
+    "share_strm_scan-0.2.2-cp314-cp314-win_amd64.whl": "768fd9dc84416e5a2321af0bb95f49e7ecb90e1012f00bde576d627194565f48",
+    "txt_tree_storage-0.2.1-cp312-cp312-win_amd64.whl": "96cc5bb9a860dd0f14294c61d1e4f2ddea79df985090d1690da8feaa03ff7d2c",
+    "txt_tree_storage-0.2.1-cp314-cp314-win_amd64.whl": "75cb62c4b14cdd87697df1a437b29f79e485aa7f337e1031d203dabf078ffe16"
+  },
+  "tests_per_python": {
+    "native_extensions": 63,
+    "python_fallbacks": 11
+  },
+  "other_platforms_rebuilt": false,
+  "source_hash_normalization": "CRLF-to-LF"
+}

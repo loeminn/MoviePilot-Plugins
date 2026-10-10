@@ -83,9 +83,19 @@ jobs:
           echo "检测到需要发布的插件，将启动构建和发布任务..."
           echo '插件列表: ${{ needs.detect-changes.outputs.matrix }}'
 
+  build-rust-wheels:
+    needs: detect-changes
+    if: ${{ contains(fromJson(needs.detect-changes.outputs.matrix).*.id, 'P115StrmHelper') }}
+    permissions:
+      contents: read
+    uses: ./.github/workflows/build-rust-wheels.yml
+
   # 开始构建和发布
   build-and-release:
-    needs: [start-release-jobs, detect-changes]
+    needs: [start-release-jobs, detect-changes, build-rust-wheels]
+    if: >-
+      ${{ !cancelled() && needs.start-release-jobs.result == 'success' &&
+          (needs.build-rust-wheels.result == 'success' || needs.build-rust-wheels.result == 'skipped') }}
     name: Release ${{ matrix.plugin.name }} v${{ matrix.plugin.version }} ${{ (github.event_name == 'workflow_dispatch' && inputs.prerelease) && ' (Prerelease)' || '' }}
     runs-on: ubuntu-latest
     permissions:
@@ -100,6 +110,23 @@ jobs:
     steps:
       - name: Checkout repository
         uses: actions/checkout@v7
+
+      - name: Setup Python for Rust bundle verification
+        if: matrix.plugin.id == 'P115StrmHelper'
+        uses: actions/setup-python@v6
+        with:
+          python-version: '3.14'
+
+      - name: Download tested Rust wheels from this release run
+        if: matrix.plugin.id == 'P115StrmHelper'
+        uses: actions/download-artifact@v8
+        with:
+          name: p115strmhelper-rust-wheels-${{ github.sha }}
+          path: rust-release-wheels
+
+      - name: Verify and replace Rust wheels before packaging
+        if: matrix.plugin.id == 'P115StrmHelper'
+        run: python .github/scripts/rust_wheel_bundle.py install --plugin plugins.v3/p115strmhelper --wheels rust-release-wheels --commit "${{ github.sha }}"
 
       - name: Setup Node.js
         if: ${{ hashFiles(format('frontend/{0}/package.json', matrix.plugin.backend_path)) != '' }}

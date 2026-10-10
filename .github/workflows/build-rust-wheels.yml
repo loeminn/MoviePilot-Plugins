@@ -1,0 +1,104 @@
+name: Build 115 STRM V3 Rust wheels
+
+on:
+  workflow_call:
+  workflow_dispatch:
+  push:
+    branches: [main]
+    paths:
+      - plugins.v3/p115strmhelper/rust_utils/**
+      - .github/workflows/build-rust-wheels.yml
+      - .github/scripts/rust_wheel_bundle.py
+      - tests/ci/test_rust_wheel_bundle.py
+  pull_request:
+    paths:
+      - plugins.v3/p115strmhelper/rust_utils/**
+      - .github/workflows/build-rust-wheels.yml
+      - .github/scripts/rust_wheel_bundle.py
+      - tests/ci/test_rust_wheel_bundle.py
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    name: ${{ matrix.extension }} / ${{ matrix.platform.os }}
+    runs-on: ${{ matrix.platform.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        extension: [full_strm_sync, share_strm_scan, txt_tree_storage]
+        platform:
+          - os: ubuntu-24.04
+            arch: x86_64
+          - os: ubuntu-24.04-arm
+            arch: aarch64
+          - os: windows-2022
+            arch: AMD64
+          - os: macos-15-intel
+            arch: x86_64 universal2
+          - os: macos-15
+            arch: arm64
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@v6
+        with:
+          python-version: '3.14'
+      - uses: dtolnay/rust-toolchain@1.95.0
+        if: runner.os != 'Linux'
+      - name: Install both macOS Rust targets
+        if: runner.os == 'macOS'
+        run: rustup target add x86_64-apple-darwin aarch64-apple-darwin
+      - name: Build and test installed wheels
+        uses: pypa/cibuildwheel@v4.3.0
+        with:
+          package-dir: plugins.v3/p115strmhelper/rust_utils/${{ matrix.extension }}
+          output-dir: rust-wheels
+        env:
+          CIBW_BUILD: cp312-* cp314-*
+          CIBW_ARCHS: ${{ matrix.platform.arch }}
+          CIBW_TEST_REQUIRES: pytest>=8,<10
+          CIBW_TEST_COMMAND: python -m pytest "{package}/tests" -q
+          CIBW_TEST_SKIP: '*-macosx_universal2:arm64'
+          CIBW_MANYLINUX_X86_64_IMAGE: manylinux2014
+          CIBW_MANYLINUX_AARCH64_IMAGE: manylinux2014
+          CIBW_BEFORE_ALL_LINUX: curl -sSf https://sh.rustup.rs | sh -s -- -y --profile minimal --default-toolchain 1.95.0
+          CIBW_ENVIRONMENT_LINUX: 'CARGO_HOME=/tmp/cargo RUSTUP_HOME=/tmp/rustup PATH="/tmp/cargo/bin:$PATH"'
+      - uses: actions/upload-artifact@v7
+        with:
+          name: rust-${{ matrix.extension }}-${{ matrix.platform.os }}
+          path: rust-wheels/*.whl
+          if-no-files-found: error
+
+  collect:
+    name: Collect tested wheels
+    needs: build
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@v6
+        with:
+          python-version: '3.14'
+      - name: Test release bundle validation
+        run: python -m unittest discover -s tests/ci -p test_rust_wheel_bundle.py -q
+      - uses: actions/download-artifact@v8
+        with:
+          pattern: rust-*
+          merge-multiple: true
+          path: rust-wheels
+      - name: Validate matrix and record source provenance
+        run: python .github/scripts/rust_wheel_bundle.py record --plugin plugins.v3/p115strmhelper --wheels rust-wheels --commit "${{ github.sha }}"
+      - name: Record checksums
+        working-directory: rust-wheels
+        run: |
+          test "$(find . -maxdepth 1 -name '*.whl' | wc -l)" -eq 48
+          sha256sum *.whl > SHA256SUMS
+      - uses: actions/upload-artifact@v7
+        with:
+          name: p115strmhelper-rust-wheels-${{ github.sha }}
+          path: rust-wheels/
+          if-no-files-found: error

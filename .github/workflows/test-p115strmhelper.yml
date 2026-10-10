@@ -12,16 +12,13 @@ permissions:
 jobs:
   dependencies:
     runs-on: ubuntu-latest
-    strategy:
-      matrix:
-        concurrenttools: ['0.1.8', '0.1.9']
     steps:
       - uses: actions/checkout@v7
       - uses: actions/setup-python@v6
         with:
           python-version: '3.14'
       - name: Install real p115client dependencies
-        run: python -m pip install pytest 'p115client==0.0.9.6.5.1' 'python-concurrenttools==${{ matrix.concurrenttools }}'
+        run: python -m pip install pytest 'p115client==0.0.9.7.2' 'python-concurrenttools==0.1.9'
       - name: Check real imports and concurrent APIs
         run: python -m pytest tests/dependencies -q
   test:
@@ -62,6 +59,10 @@ jobs:
         run: python -m unittest discover -s plugins.v3/p115strmhelper/tests -p 'test_r302*.py' -q
       - name: Test transfer classification with isolated V3 SDK stubs
         run: python -m unittest discover -s plugins.v3/p115strmhelper/tests -p test_transfer_classify.py -q
+      - name: Test incremental mapping and cleanup
+        run: |
+          python -m unittest discover -s plugins.v3/p115strmhelper/tests -p 'test_increment*.py' -q
+          python -m unittest discover -s plugins.v3/p115strmhelper/tests -p test_path_cleanup.py -q
       - name: Compile plugin source
         run: python -m compileall -q plugins.v3/p115strmhelper
       - uses: actions/setup-node@v7

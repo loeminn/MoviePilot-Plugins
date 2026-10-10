@@ -3,29 +3,21 @@
 import ast
 import asyncio
 import importlib
+from inspect import signature
 from pathlib import Path
-import runpy
+from typing import Tuple
 
 import concurrenttools
 import pytest
 
 
 PLUGIN = Path(__file__).resolve().parents[2] / "plugins.v3/p115strmhelper"
-ensure_compat = runpy.run_path(str(PLUGIN / "dependency_compat.py"))[
-    "ensure_concurrenttools_compat"
-]
 
+def test_all_plugin_p115_imports_resolve() -> None:
+    """
+    验证全部插件引用的客户端符号可直接导入，无需修改共享依赖
+    """
 
-def test_bootstrap_runs_before_other_imports():
-    tree = ast.parse((PLUGIN / "__init__.py").read_text("utf8"))
-    assert isinstance(tree.body[0], ast.ImportFrom)
-    assert tree.body[0].module == "dependency_compat"
-    assert isinstance(tree.body[1], ast.Expr)
-    assert tree.body[1].value.func.id == "ensure_concurrenttools_compat"
-
-
-def test_all_plugin_p115_imports_resolve():
-    ensure_compat()
     imports = set()
     for path in PLUGIN.rglob("*.py"):
         if "tests" in path.relative_to(PLUGIN).parts:
@@ -39,38 +31,58 @@ def test_all_plugin_p115_imports_resolve():
             assert hasattr(module, name), f"{module_name}.{name}"
 
 
-def test_compat_is_idempotent_and_preserves_existing_functions():
-    ensure_compat()
-    original = (concurrenttools.threadpool_map, concurrenttools.taskgroup_map)
-    ensure_compat()
-    assert original == (concurrenttools.threadpool_map, concurrenttools.taskgroup_map)
+def test_thread_map_results_and_errors() -> None:
+    """
+    验证新版同步并发接口的结果及异常传播
+    """
 
-
-def test_thread_map_results_and_errors():
-    ensure_compat()
-    assert list(concurrenttools.threadpool_map(lambda x: x * 2, [1, 2, 3], max_workers=2)) == [2, 4, 6]
+    assert list(concurrenttools.thread_conmap(lambda x: x * 2, [1, 2, 3], max_workers=2)) == [2, 4, 6]
     with pytest.raises(ZeroDivisionError):
-        list(concurrenttools.threadpool_map(lambda x: 1 / x, [0], max_workers=1))
+        list(concurrenttools.thread_conmap(lambda x: 1 / x, [0], max_workers=1))
 
 
-def test_async_map_results_and_errors():
-    ensure_compat()
+def test_async_map_results_and_errors() -> None:
+    """
+    验证新版异步并发接口的结果及异常传播
+    """
 
-    async def run():
-        async def double(value):
+    async def _run() -> None:
+        async def _double(value: int) -> int:
             return value * 2
 
-        async def fail(value):
+        async def _fail(value: int) -> None:
             raise ValueError("expected")
 
-        result = [value async for value in concurrenttools.taskgroup_map(double, [1, 2, 3], max_workers=2)]
+        result = [value async for value in concurrenttools.async_conmap(_double, [1, 2, 3], max_workers=2)]
         assert result == [2, 4, 6]
         failed = False
         try:
-            [value async for value in concurrenttools.taskgroup_map(fail, [1], max_workers=1)]
+            [value async for value in concurrenttools.async_conmap(_fail, [1], max_workers=1)]
         except* ValueError as errors:
             assert all(str(error) == "expected" for error in errors.exceptions)
             failed = True
         assert failed
 
-    asyncio.run(run())
+    asyncio.run(_run())
+
+
+@pytest.mark.parametrize(
+    "module_name,name,parameters",
+    [
+        ("iterdir", "iter_files", ("with_path", "with_ancestors", "order", "max_workers")),
+        ("iterdir", "iter_files_skim", ("with_path", "with_ancestors")),
+        ("iterdir", "share_iterdir", ("order", "share_code", "cid")),
+        ("iterdir", "traverse_tree", ("with_path", "id_to_dirnode", "async_")),
+        ("iter_nodes", "iter_nodes", ("payload", "page_size")),
+    ],
+)
+def test_iterator_parameters_are_consumed_by_client(
+    module_name: str, name: str, parameters: Tuple[str, ...]
+) -> None:
+    """
+    验证路径及排序参数由真实客户端消费，避免误透传为 HTTP 请求参数
+    """
+
+    function = getattr(importlib.import_module(f"p115client.tool.{module_name}"), name)
+    declared = signature(function).parameters
+    assert all(parameter in declared for parameter in parameters)
