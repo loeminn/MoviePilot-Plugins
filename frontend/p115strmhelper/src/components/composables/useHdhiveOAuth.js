@@ -1,11 +1,11 @@
 import { onMounted, onUnmounted, reactive } from 'vue';
 
-const HDHIVE_ORIGIN = 'https://hdhive.com';
+const HDHIVE_ORIGIN = 'https://re0.me';
 const OAUTH_TIMEOUT_MS = 120000;
 const POPUP_FEATURES = 'width=520,height=720';
 
 /**
- * HDHive OAuth（postMessage 单路径）
+ * RE0 OAuth（postMessage 单路径）
  * @param {object} api - MoviePilot API
  * @param {object} message - 全局消息 reactive
  * @param {string} pluginId - 插件 ID
@@ -83,7 +83,7 @@ export function useHdhiveOAuth(api, message, pluginId) {
         oauth.status = resp.data || null;
       }
     } catch (e) {
-      console.warn('HDHive OAuth status failed', e);
+      console.warn('RE0 OAuth status failed', e);
     }
   };
 
@@ -106,15 +106,15 @@ export function useHdhiveOAuth(api, message, pluginId) {
         redirect_uri: oauth.redirectUri,
       });
       if (resp?.code === 0) {
-        message.text = resp.msg || 'HDHive 授权成功';
+        message.text = resp.msg || 'RE0 授权成功';
         message.type = 'success';
         await fetchStatus();
       } else {
-        message.text = resp?.msg || 'HDHive 授权失败';
+        message.text = resp?.msg || 'RE0 授权失败';
         message.type = 'error';
       }
     } catch (e) {
-      message.text = `HDHive 授权失败: ${e.message}`;
+      message.text = `RE0 授权失败: ${e.message}`;
       message.type = 'error';
     } finally {
       oauth.loading = false;
@@ -125,7 +125,7 @@ export function useHdhiveOAuth(api, message, pluginId) {
   };
 
   const onOAuthMessage = (event) => {
-    // HDHive 的 postmessage 可能来自 hdhive.com，也可能来自 redirect_uri 所在域名（broker callback 页）
+    // RE0 的 postmessage 可能来自 re0.me，也可能来自 redirect_uri 所在域名（broker callback 页）
     const redirectOrigin = oauth.redirectUri ? new URL(oauth.redirectUri).origin : '';
     if (event.origin !== HDHIVE_ORIGIN && event.origin !== redirectOrigin) return;
     if (!oauth.pending) return;
@@ -153,7 +153,7 @@ export function useHdhiveOAuth(api, message, pluginId) {
         return;
       }
       oauth.pending = true;
-      message.text = '请在弹出窗口中完成 HDHive 授权…';
+      message.text = '请在弹出窗口中完成 RE0 授权…';
       message.type = 'info';
       clearOAuthTimer();
       timeoutId = setTimeout(() => {

@@ -2,7 +2,11 @@
 
 本仓库仅维护 **115 网盘 STRM 助手的 MoviePilot V3 适配版**，基于 [DDSRem-Dev/MoviePilot-Plugins](https://github.com/DDSRem-Dev/MoviePilot-Plugins) 原版开发，保留原作者署名及许可证。
 
-当前源码版本 **3.1.4**，目标宿主 **MoviePilot >=3.1.0**。[下载发行版](https://github.com/loeminn/MoviePilot-Plugins/releases)。尚未完成真实 MP V3 / 115 账号端到端联调。
+当前源码版本 **3.1.5**，目标宿主 **MoviePilot >=3.1.0**。[下载发行版](https://github.com/loeminn/MoviePilot-Plugins/releases)。尚未完成真实 MP V3 / 115 账号端到端联调。
+
+3.1.5 同步上游 2.8.76（`46d0405c`），适配 RE0（原 HDHive）的新域名、签到、搜索、解锁与 OAuth 来源校验，完善登录、Cloudflare 验证和首次偏好设置处理。保留原有 `hdhive_*` 配置键及 V3 功能；升级后重启 MoviePilot 并刷新浏览器，若登录或授权失效，请重新登录或授权。RE0 浏览器流程及资源解析测试已接入 CI；真实 RE0 账号和 OAuth 中转服务尚未端到端验证。
+
+3.1.5 本地验证：72 项 V3 适配测试、71 项 RE0 测试、53 项 302/整理/增量与清理测试及 23 项前端测试通过，V3 生产构建、CSS 检查和 Python 编译检查通过。14 项 PostgreSQL 测试因本地未配置数据库跳过，由现有 CI 数据库环境执行。
 
 3.1.4 同步上游 2.8.75 的客户端接口适配、增量同步串集修复、整理结果检查和旧目录刮削清理。同时升级 Rust 构建至 PyO3 0.29.3，新增跨平台 wheel 构建流程，已重建并验证 Windows Python 3.12/3.14 产物。升级后请重启 MoviePilot 并刷新浏览器；保留现有 V3 数据库及配置。
 
@@ -52,7 +56,7 @@ python -m unittest discover -s plugins.v3/p115strmhelper/tests -p test_r302_conc
 
 前端在 `frontend/p115strmhelper` 中运行 `npm ci`，设置 `MP_PLUGIN_V3=1` 后运行 `npm run build`。发布工作流会自动构建前端并打包。
 
-适配测试共 86 项，其中 14 项使用真实 PostgreSQL；本地精简环境运行 72 项，其余 14 项在配置了 PostgreSQL 的 CI 中运行。另有 18 项 302 缓存与并发测试、18 项整理分类测试、10 项增量映射与清理测试、7 项关联文件清理测试和 19 项前端测试。运行适配测试前，将 `MOVIEPILOT_SOURCE` 环境变量设为 MoviePilot 源码目录，可执行其中两项真实宿主调度方法测试及一项动态路由注册测试；未设置时宿主相关测试会跳过。CI 固定检出已核对的宿主提交并执行全部测试。测试使用数据库和网络边界替身，不等于真实宿主端到端验证。
+适配测试共 86 项，其中 14 项使用真实 PostgreSQL；本地精简环境运行 72 项，其余 14 项在配置了 PostgreSQL 的 CI 中运行。另有 18 项 302 缓存与并发测试、18 项整理分类测试、10 项增量映射与清理测试、7 项关联文件清理测试、71 项 RE0 测试和 23 项前端测试。运行适配测试前，将 `MOVIEPILOT_SOURCE` 环境变量设为 MoviePilot 源码目录，可执行其中两项真实宿主调度方法测试及一项动态路由注册测试；未设置时宿主相关测试会跳过。CI 固定检出已核对的宿主提交并执行全部测试。测试使用数据库和网络边界替身，不等于真实宿主端到端验证。
 
 配置持久化使用插件基类接口，历史查询使用公开 Oper；保存后重新初始化、模糊匹配及分身拒绝行为已有回归测试。
 
