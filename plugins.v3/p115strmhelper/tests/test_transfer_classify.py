@@ -569,6 +569,7 @@ class TestDoGenerate(TestCase):
             path=f"/pan/媒体库/电视剧/x/{file_name}",
             name=file_name,
             pickcode="a" * 17,
+            fileid="123",
         )
         target_diritem = SimpleNamespace(path="/pan/媒体库/电视剧/x/")
         return {

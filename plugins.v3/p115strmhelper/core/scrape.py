@@ -1,28 +1,42 @@
 from pathlib import Path
+from typing import Optional, Union
 
-from app.sdk.events import eventmanager
-from app.sdk.media import MetaInfoPath
-from app.sdk.media import MetaBase
-from app.sdk.config import settings
-from app.sdk.media import MediaInfo
-from app.sdk.logging import logger
 from app.chain.media import MediaChain
-from app.schemas.types import MediaType, EventType
 from app.schemas import FileItem
+from app.schemas.types import EventType, MediaType
+from app.sdk.config import settings
+from app.sdk.events import eventmanager
+from app.sdk.logging import logger
+from app.sdk.media import MediaInfo, MetaBase, MetaInfoPath, resolve_media_identity
+
+
+def _same_media_identity(left: Optional[MediaInfo], right: Optional[MediaInfo]) -> bool:
+    source, media_id = resolve_media_identity(left)
+    if not source or not media_id or (source, media_id) != resolve_media_identity(right):
+        return False
+    try:
+        media_type = MediaType(left.type)
+        return (
+            media_type in (MediaType.MOVIE, MediaType.TV)
+            and media_type == MediaType(right.type)
+        )
+    except (AttributeError, TypeError, ValueError):
+        return False
 
 
 def media_scrape_metadata(
-    path,
+    path: Union[str, Path],
     item_name: str = "",
-    mediainfo: MediaInfo = None,
-    meta: MetaBase = None,
-):
+    mediainfo: Optional[MediaInfo] = None,
+    meta: Optional[MetaBase] = None,
+) -> None:
     """
     媒体刮削服务
-    :param path: 媒体文件路径
-    :param item_name: 媒体名称
-    :param meta: 元数据
-    :param mediainfo: 媒体信息
+
+    :param path (Path): 媒体文件路径，也接受字符串
+    :param item_name (str): 媒体名称
+    :param mediainfo (MediaInfo): 媒体信息
+    :param meta (MetaBase): 元数据
     """
     item_name = item_name if item_name else Path(path).name
     mediachain = MediaChain()
@@ -89,12 +103,12 @@ def media_scrape_metadata(
         dir_path = Path(path).parent
         tem_mediainfo = mediachain.recognize_by_meta(MetaInfoPath(dir_path))
         # 只有上级目录信息和文件的信息一致时才继续判断上级目录
-        if tem_mediainfo and tem_mediainfo.imdb_id == mediainfo.imdb_id:
+        if _same_media_identity(tem_mediainfo, mediainfo):
             if mediainfo.type == MediaType.TV:
                 # 如果是电视剧，再次获取上级目录媒体信息，兼容电视剧命名，获取 mediainfo
                 dir_path = dir_path.parent
                 tem_mediainfo = mediachain.recognize_by_meta(MetaInfoPath(dir_path))
-                if tem_mediainfo and tem_mediainfo.imdb_id == mediainfo.imdb_id:
+                if _same_media_identity(tem_mediainfo, mediainfo):
                     # 存在 mediainfo 则使用本级目录
                     finish_path = dir_path
                 else:

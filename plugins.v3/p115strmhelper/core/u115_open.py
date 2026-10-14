@@ -176,10 +176,14 @@ class U115OpenHelper:
         method: str,
         endpoint: str,
         result_key: Optional[str] = None,
+        *,
+        accepted_codes: Tuple[int, ...] = (0,),
         **kwargs,
     ) -> Optional[Union[dict, list]]:
         """
-        API 请求函数
+        调用 Open API，并将调用方可处理的业务码保留在响应中
+
+        :param accepted_codes (Tuple): 允许返回给调用方处理的业务码
         """
         # 检查会话
         self._check_session()
@@ -200,15 +204,24 @@ class U115OpenHelper:
             return None
 
         kwargs["retry_limit"] = retry_times
+        kwargs["no_error_log"] = no_error_log
 
         # 处理速率限制
         if resp.status_code == 429:
+            if retry_times <= 0:
+                logger.error(
+                    f"【P115Open】{method} 请求 {endpoint} 限流，重试次数用尽！"
+                )
+                return None
+            kwargs["retry_limit"] = retry_times - 1
             reset_time = 5 + int(resp.headers.get("X-RateLimit-Reset", 60))
             logger.debug(
                 f"【P115Open】{method} 请求 {endpoint} 限流，等待{reset_time}秒后重试"
             )
             sleep(reset_time)
-            return self._request_api(method, endpoint, result_key, **kwargs)
+            return self._request_api(
+                method, endpoint, result_key, accepted_codes=accepted_codes, **kwargs
+            )
 
         # 处理请求错误
         try:
@@ -225,12 +238,14 @@ class U115OpenHelper:
                 f"【P115Open】{method} 请求 {endpoint} 错误 {e}，等待 {sleep_duration} 秒后重试..."
             )
             sleep(sleep_duration)
-            return self._request_api(method, endpoint, result_key, **kwargs)
+            return self._request_api(
+                method, endpoint, result_key, accepted_codes=accepted_codes, **kwargs
+            )
 
         # 返回数据
         ret_data = resp.json()
-        if ret_data.get("code") != 0:
-            error_msg = ret_data.get("message")
+        if ret_data.get("code") not in accepted_codes:
+            error_msg = str(ret_data.get("message") or "")
             if not no_error_log:
                 logger.warn(f"【P115Open】{method} 请求 {endpoint} 出错：{error_msg}")
             if "已达到当前访问上限" in error_msg:
@@ -244,7 +259,9 @@ class U115OpenHelper:
                     f"【P115Open】{method} 请求 {endpoint} 达到访问上限，等待 {self.retry_delay} 秒后重试..."
                 )
                 sleep(self.retry_delay)
-                return self._request_api(method, endpoint, result_key, **kwargs)
+                return self._request_api(
+                    method, endpoint, result_key, accepted_codes=accepted_codes, **kwargs
+                )
             return None
 
         if result_key:
@@ -952,6 +969,7 @@ class U115OpenHelper:
             resp = self._request_api(
                 "POST",
                 "/open/folder/add",
+                accepted_codes=(0, 20004),
                 data={"pid": int(parent_item.fileid or "0"), "file_name": name},
             )
             if not resp:

@@ -169,7 +169,11 @@ class BackupService:
                     return
                 if task_name in self._reserved_task_started:
                     return
-            job_exists = any(job.id == job_id for job in list_scheduler_jobs())
+            try:
+                job_exists = any(job.id == job_id for job in list_scheduler_jobs())
+            except Exception as e:
+                logger.warning(f"【STRM备份】无法核实调度状态，保留运行槽: {e}")
+                return
             if job_exists:
                 return
             self._release_backup_task(task_name)

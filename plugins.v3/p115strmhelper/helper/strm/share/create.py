@@ -735,16 +735,15 @@ class ShareInteractiveGenStrmQueue:
 
     def _ensure_worker_running(self) -> None:
         """
-        确保工作线程已启动
+        持有任务锁时确保工作线程已启动
         """
-        with self._worker_lock:
-            if self._worker_thread is None or not self._worker_thread.is_alive():
-                self._worker_thread = Thread(
-                    target=self._process_queue,
-                    name="P115ShareInteractiveGenStrm",
-                    daemon=True,
-                )
-                self._worker_thread.start()
+        if self._worker_thread is None or not self._worker_thread.is_alive():
+            self._worker_thread = Thread(
+                target=self._process_queue,
+                name="P115ShareInteractiveGenStrm",
+                daemon=True,
+            )
+            self._worker_thread.start()
 
     def _process_queue(self) -> None:
         """
@@ -754,8 +753,12 @@ class ShareInteractiveGenStrmQueue:
             try:
                 task = self._task_queue.get(timeout=60)
             except Empty:
-                logger.debug("【分享交互生成STRM】队列空闲，工作线程退出")
-                break
+                with self._worker_lock:
+                    if not self._task_queue.empty():
+                        continue
+                    self._worker_thread = None
+                    logger.debug("【分享交互生成STRM】队列空闲，工作线程退出")
+                    break
             share_url, channel, source, userid = task
             try:
                 self._run_job(
@@ -888,9 +891,10 @@ class ShareInteractiveGenStrmQueue:
         :param userid (str): 用户 ID
         :return int: 入队后队列中等待执行的任务数量
         """
-        self._task_queue.put((share_url, channel, source, userid))
-        self._ensure_worker_running()
-        return self._task_queue.qsize()
+        with self._worker_lock:
+            self._task_queue.put((share_url, channel, source, userid))
+            self._ensure_worker_running()
+            return self._task_queue.qsize()
 
     def enqueue_and_notify_user(
         self,

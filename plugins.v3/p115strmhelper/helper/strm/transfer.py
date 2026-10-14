@@ -346,6 +346,26 @@ class TransferStrmHelper:
             return
         logger.debug("【监控整理STRM生成】匹配到网盘文件夹路径: %s", str(pan_media_dir))
 
+        if (
+            item_transfer.target_item.storage != "CloudDrive储存"
+            and item_dest_pickcode
+            and not item_transfer.target_item.fileid
+        ):
+            try:
+                file_id = client.to_id(item_dest_pickcode)
+                if not file_id or not str(file_id).isdigit() or int(file_id) <= 0:
+                    raise ValueError("目标文件 ID 无效")
+                item_transfer = item_transfer.model_copy(
+                    update={
+                        "target_item": item_transfer.target_item.model_copy(
+                            update={"fileid": str(file_id)}
+                        )
+                    }
+                )
+            except Exception:
+                logger.error("【监控整理STRM生成】无法恢复目标文件 ID，跳过处理", exc_info=True)
+                return
+
         # 下载 音轨/字幕 文件
         if (
             event_type == EventType.AudioTransferComplete

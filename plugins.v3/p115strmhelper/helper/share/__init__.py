@@ -4,7 +4,7 @@ from queue import Empty, Queue
 from re import match
 from threading import Lock, Thread
 from time import sleep
-from typing import Literal, Optional
+from typing import Literal, Optional, Union
 
 from p115center import P115Center
 from p115center.schemas import ShareInfo
@@ -41,21 +41,20 @@ class ShareTransferHelper:
         self._add_share_worker_thread = None
         self._add_share_worker_lock = Lock()
 
-    def _ensure_add_share_worker_running(self):
+    def _ensure_add_share_worker_running(self) -> None:
         """
-        确保工作线程正在运行
+        持有任务锁时确保工作线程正在运行
         """
-        with self._add_share_worker_lock:
-            if (
-                self._add_share_worker_thread is None
-                or not self._add_share_worker_thread.is_alive()
-            ):
-                self._add_share_worker_thread = Thread(
-                    target=self._process_add_share_queue, daemon=True
-                )
-                self._add_share_worker_thread.start()
+        if (
+            self._add_share_worker_thread is None
+            or not self._add_share_worker_thread.is_alive()
+        ):
+            self._add_share_worker_thread = Thread(
+                target=self._process_add_share_queue, daemon=True
+            )
+            self._add_share_worker_thread.start()
 
-    def _process_add_share_queue(self):
+    def _process_add_share_queue(self) -> None:
         """
         处理队列中的任务
         """
@@ -63,8 +62,12 @@ class ShareTransferHelper:
             try:
                 task = self._add_share_queue.get(timeout=60)
             except Empty:
-                logger.debug("【分享转存】释放分享转存队列任务")
-                break
+                with self._add_share_worker_lock:
+                    if not self._add_share_queue.empty():
+                        continue
+                    self._add_share_worker_thread = None
+                    logger.debug("【分享转存】释放分享转存队列任务")
+                    break
 
             url, channel, source, userid, pan_path = task
             try:
@@ -443,16 +446,22 @@ class ShareTransferHelper:
             return
 
     def add_share(
-        self, url, channel, userid, pan_path=None, source: Optional[str] = None
-    ):
+        self,
+        url: str,
+        channel: Optional[Union[str, int]],
+        userid: Optional[str],
+        pan_path: Optional[Union[str, Path]] = None,
+        source: Optional[str] = None,
+    ) -> None:
         """
         将分享任务加入队列
         """
-        self._add_share_queue.put((url, channel, source, userid, pan_path))
-        logger.info(
-            f"【分享转存】{url} 任务已加入分享转存队列，当前队列大小：{self._add_share_queue.qsize()}"
-        )
-        self._ensure_add_share_worker_running()
+        with self._add_share_worker_lock:
+            self._add_share_queue.put((url, channel, source, userid, pan_path))
+            logger.info(
+                f"【分享转存】{url} 任务已加入分享转存队列，当前队列大小：{self._add_share_queue.qsize()}"
+            )
+            self._ensure_add_share_worker_running()
 
     @staticmethod
     def post_share_info(

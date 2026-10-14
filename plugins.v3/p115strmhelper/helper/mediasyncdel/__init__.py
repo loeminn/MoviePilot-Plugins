@@ -513,6 +513,9 @@ class MediaSyncDelHelper:
         :param season_num (str): 季数
         :param episode_num (str): 集数
         """
+        if not tmdb_id or not str(tmdb_id).isdecimal() or int(tmdb_id) <= 0:
+            logger.warning("【同步删除】缺少有效 TMDB 身份，拒绝扩大历史查询范围")
+            return "", []
         # 季数
         if season_num and str(season_num).isdigit():
             season_num = str(season_num).rjust(2, "0")

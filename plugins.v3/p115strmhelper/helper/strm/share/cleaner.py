@@ -273,6 +273,8 @@ class ShareStrmMissingMediaStore:
             "type": getattr(th, "type", None),
             "title": getattr(th, "title", None),
             "year": getattr(th, "year", None),
+            "media_source": getattr(media_source, "value", media_source),
+            "media_id": media_id,
             "tmdbid": media_id if media_source == MediaSource.TMDB.value else None,
             "tvdbid": media_id if media_source == MediaSource.TVDB.value else None,
             "imdbid": media_id if media_source == MediaSource.IMDb.value else None,
